@@ -1,0 +1,124 @@
+---
+title: 'Conceitos Sobre Distribuições de Probabilidade'
+author: "Gabriel D'assumpção de Carvalho"
+date: "`r Sys.Date()`"
+output:
+  bookdown::pdf_document2:
+    number_sections: true
+    toc: true
+    toc_depth: 2
+    fig_caption: true
+    dev: "png"
+params:
+  digits: 4
+header-includes: |
+  \usepackage{amsmath}
+  \usepackage{fancyhdr}
+  \pagestyle{fancy}
+  \fancyhf{}  % limpa tudo antes de configurar
+
+  % Cabeçalho: seção à esquerda (ou capítulo) e número da página à direita
+  \fancyhead[L]{\nouppercase{\leftmark}}  % mostra seção atual (ou capítulo)
+  \fancyhead[R]{\thepage}
+
+  % Rodapé vazio (ou coloque algo no centro, se quiser)
+  \fancyfoot[C]{}
+knitr:
+  opts_chunk:
+    screenshot.force: TRUE
+---
+
+\newpage
+
+# Introdução
+
+Neste relatório, abordamos os principais conceitos relacionados às seguintes distribuições de probabilidade: Bernoulli, Binomial, Multinomial, Poisson, Exponencial, Geométrica, Hipergeométrica, Gama e Weibull. Essas distribuições são fundamentais para a modelagem estatística, especialmente em contextos de análise de sobrevivência, pois permitem descrever a probabilidade de ocorrência de eventos discretos (como sucesso, falha, etc.) e contínuos (como tempo até a falha ou tempo de vida útil de um sistema).
+
+Neste estudo, geraremos amostras com 1000 observações de cada uma dessas distribuições. Em seguida, construiremos gráficos de barras para variáveis discretas e histogramas para variáveis contínuas, a fim de visualizar o comportamento de suas respectivas probabilidades.
+
+```{r, message=FALSE, warning=FALSE}
+# Configuração de reprodutibilidade
+n <- 1000
+set.seed(42)
+```
+
+# Distribuições Discretas
+
+Distribuições discretas descrevem variáveis aleatórias que podem assumir valores finitos ou contáveis. Abaixo, exploramos algumas das distribuições discretas mais utilizadas na prática estatística.
+
+## Distribuição de Bernoulli
+
+A distribuição de Bernoulli é uma das mais importantes distribuições de probabilidade. Qualquer situação que envolva apenas dois desfechos possíveis pode ser modelada como uma variável de Bernoulli. Os dois resultados possíveis são: sucesso (1) ou fracasso (0). A probabilidade de sucesso é denotada por $p$ e a de fracasso por $q = 1 - p$.
+
+A função de massa de probabilidade (FMP) da distribuição de Bernoulli é dada por:
+
+$$
+P(X = x) = p^x (1 - p)^{1 - x}, \quad x \in \{0, 1\}
+$$
+
+Onde $X$ representa a variável aleatória que indica o resultado do experimento.
+
+As propriedades fundamentais da distribuição de Bernoulli são:
+
+$$
+E(X) = \mathbb{P}(X = 1) \cdot 1 + \mathbb{P}(X = 0) \cdot 0 = p
+$$
+
+$$
+\text{Var}(X) = E(X^2) - [E(X)]^2 = p(1 - p) = pq
+$$
+
+Sendo:
+\begin{itemize}
+  \item $E(X)$: esperança (média) da variável aleatória $X$;
+  \item $\text{Var}(X)$: variância de $X$;
+  \item $p$: probabilidade de sucesso;
+  \item $q$: probabilidade de fracasso.
+\end{itemize}
+
+### Exemplo {#exemplo-bernoulli}
+```{r bernoulli-plot, fig.cap="Distribuição de Bernoulli", fig.align='center'}
+p <- 0.7
+bernoulli <- rbinom(n, 1, p)
+
+barplot(table(bernoulli),
+  main = "Distribuição Bernoulli (p = 0.7)",
+  names.arg = c("0", "1"),
+  col = c("#ff0000", "#55a802"),
+  ylab = "Frequência",
+  xlab = "Valor"
+)
+```
+
+```{r, message=FALSE, warning=FALSE}
+print(paste("Esperança:", mean(bernoulli), " | ", "p = ", p))
+print(paste("Variância:", round(var(bernoulli), 4), " | ", "p * q = ", p * (1 - p)))
+```
+
+
+Podemos observar que a média e a variância empíricas da amostra seguem de perto os valores teóricos $E(X) = p$ e $\text{Var}(X) = pq$, confirmando a adequação da distribuição.
+
+## Distribuição Binomial
+
+A distribuição binomial generaliza a Bernoulli para $n$ repetições independentes do mesmo experimento. Cada tentativa tem probabilidade de sucesso $p$ e fracasso $q = 1 - p$. A variável aleatória $X$ representa o número de sucessos em $n$ tentativas.
+
+A função de massa de probabilidade é dada por:
+
+$$
+P(X = k) = \binom{n}{k} p^k (1 - p)^{n - k}, \quad k = 0, 1, \ldots, n
+$$
+
+Onde:
+\begin{itemize}
+  \item $n$: número total de tentativas;
+  \item $k$: número de sucessos;
+  \item $\binom{n}{k}$: coeficiente binomial, que representa o número de maneiras de escolher $k$ sucessos em $n$ tentativas.
+\end{itemize}
+
+Nota-se que quando $n = 1$, a distribuição binomial se reduz à distribuição de Bernoulli. Por isso foi utilizado `rbinom(n, 1, p)` no exemplo \@ref(exemplo-bernoulli).
+
+A distribuição binomial possui as seguintes propriedades:
+
+$$
+E(x) = 
+$$

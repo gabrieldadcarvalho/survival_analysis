@@ -1,0 +1,173 @@
+---
+pdf_document:
+  fig_caption: true
+  number_sections: true
+  dev: png
+author: "Gabriel D'assumpção de Carvalho"
+date: "`r Sys.Date()`"
+output:
+  bookdown::pdf_document2:
+    number_sections: true
+    toc: true         # Gera o sumário automaticamente
+    toc_depth: 2      # Limita o sumário a dois níveis
+  pdf_document: default
+title: 'Estimador de Kaplan-Meier'
+params:
+  digits: 4
+header-includes: |
+  \usepackage{amsmath}
+  \usepackage{fancyhdr}  % Adiciona pacotes para cabeçalhos e rodapés personalizados
+  \pagestyle{fancy}
+  \fancyhead[L]{Kaplan-Meier | Aplicação em R}
+  \fancyfoot[C]{Página \thepage}
+  \fancyhead[C]{}
+knitr:
+  opts_chunk:
+    screenshot.force: TRUE
+---
+
+
+# Introdução
+
+Neste documento, apresentamos o estimador de Kaplan-Meier, uma técnica estatística não paramétrica amplamente utilizada para estimar a função de sobrevivência com base em dados observacionais ao longo do tempo. Essa abordagem é especialmente útil em estudos de sobrevivência nas áreas médica, epidemiológica e em ciências sociais. Também será demonstrado como aplicar o estimador utilizando o pacote `survival` do R, além de comparações com a estimativa feita manualmente, sem o uso de pacotes.
+```{r, message=FALSE, warning=FALSE}
+# Carregamento dos pacotes necessários
+
+# Pacote para análise de sobrevivência
+# install.packages("survival")
+library(survival)
+
+# Pacote para visualização dos dados
+# install.packages("ggplot2")
+library(ggplot2)
+```
+
+# Estimador de Kaplan-Meier
+
+O estimador de Kaplan-Meier é uma técnica estatística não paramétrica usada para estimar a função de sobrevivência a partir de dados observacionais ao longo de um período de tempo. Ele é amplamente utilizado em estudos de sobrevivência, como pesquisa médica, epidemologia, ciências sociais, também sendo empregado em análise financeira e de risco.
+
+**Exemplo de aplicação:**
+\begin{itemize}
+  \item Seu estimador pode ser usado para determinar o período de permanência de desemprego de um indivíduo após a sua demissão;
+  \item Pode estimar o tempo de falha de um equipamento após a sua instalação;
+  \item Tempo que uma flor brota após o plantio;
+  \item Tempo de vida de um paciente após o início de um tratamento.
+\end{itemize}
+
+## Função de Sobrevivência $S(t)$
+
+A função de sobrevivência, $S(t)$, define a probabilidade de um indivíduo sobreviver além de um determinado tempo $t$. É expressa como:
+
+$$
+S(t) = P(T > t) = 1 - F(t)
+$$
+
+onde $F(t)$ é a função de distribuição acumulada (FDA) do tempo de sobrevivência $T$. Para os casos contínuos, a função de sobrevivência é definida como:
+
+$$
+S(t) = 1 - \int_0^t f(u) \, du = \int_t^\infty f(u) \, du
+$$
+
+onde $f(u)$ é a função densidade de probabilidade (FDP) do tempo de sobrevivência. Para os casos discretos, ela é dada como:
+
+$$
+S(t) = \prod_{i: t_i \leq t} \left(1 - \frac{d_i}{n_i}\right)
+$$
+
+Sendo:
+
+\begin{itemize}
+  \item $t_i$: tempo em que ocorreu pelo menos um evento (falha);
+  \item $d_i$: número de eventos (falhas) observados no tempo $t_i$;
+  \item $n_i$: número de indivíduos em risco no tempo $t_i$.
+\end{itemize}
+
+Nota-se que até o momento não foi introduzido o conceito de censura. A censura ocorre quando o tempo de sobrevivência de um indivíduo não é completamente observada, ou seja, quando o evento de interesse (como falha ou morte) não acorre durante o período de observação.
+
+# Aplicações do estimador de Kaplan-Meier
+Os exemplos utilizado nesse estudo foram retirados do livro: "Análise de Sobrevivência Aplicada – Eurico Antônio Colosimo e Suely Ruiz Giolo, 2006.
+Ed. Blucher"
+
+## Dados de Hepatite
+
+Foram escolhidos 29 pacientes com hepatite viral aguda e separados aleatóriamente em dois grupos. Os pacietnes foram acompanhados durante 4 meses ou até a falha ou censura do paciente. 
+
+\begin{itemize}
+  \item \textbf{Tipo de estudo:} Estudo clínico randomizado;
+  \item \textbf{Grupo de tratamento:} Pacientes que receberam terapia com esteroides;
+  \item \textbf{Grupo controle:} Pacientes que receberam placebo.
+\end{itemize}
+
+```{r, warning=FALSE, message=FALSE}
+# Carregamento dos Dados
+
+controle <- data.frame(
+  tempo = c(
+    1, 2, 3, 3, 3, 5, 5, 16, 16, 16, 16,
+    16, 16, 16, 16
+  ),
+  evento = c(0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+)
+
+casos <- data.frame(
+  tempo = c(
+    1, 1, 1, 1, 4, 5, 7, 8, 10, 10, 12, 16, 16,
+    16
+  ),
+  evento = c(1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0)
+)
+```
+
+```{r, warning=FALSE, message=FALSE}
+survControle <- survfit(Surv(controle$tempo, controle$evento) ~ 1)
+print(summary(survControle))
+
+survCasos <- survfit(Surv(casos$tempo, casos$evento) ~ 1)
+print(summary(survCasos))
+```   
+
+```{r, warning=FALSE, message=FALSE}
+ekm <- function(time, evento, classEvento = 1) {
+  tempo_evento <- sort(unique(time[evento == classEvento]))
+
+  data <- data.frame(
+    time = tempo_evento,
+    n_risk = NA,
+    n_event = NA,
+    censured = NA,
+    q_i = NA,
+    p_i = NA,
+    S_t_i = NA
+  )
+
+  S_t_anterior <- 1
+
+  for (i in seq_along(data$time)) {
+    t <- data$time[i]
+
+    data$n_risk[i] <- sum(time >= t)
+    data$n_event[i] <- sum(time == t & evento == classEvento)
+    data$censured[i] <- sum(time == t & evento != classEvento)
+
+    # Cálculo das probabilidades
+    if (data$n_risk[i] > 0) {
+      data$q_i[i] <- data$n_event[i] / data$n_risk[i]
+      data$p_i[i] <- 1 - data$q_i[i]
+      data$S_t_i[i] <- S_t_anterior * data$p_i[i]
+      S_t_anterior <- data$S_t_i[i] # atualiza
+    } else {
+      data$S_t_i[i] <- S_t_anterior
+    }
+  }
+
+  return(data)
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+ekmControle <- ekm(controle$tempo, controle$evento, 1)
+print(ekmControle)
+
+ekmCasos <- ekm(casos$tempo, casos$evento, 1)
+print(ekmCasos)
+```
