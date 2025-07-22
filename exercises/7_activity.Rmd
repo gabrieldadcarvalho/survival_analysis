@@ -14,13 +14,16 @@ params:
 header-includes: |
   \usepackage{amsmath}
   \usepackage{fancyhdr}
+  \usepackage{cancel}
+  \renewcommand{\CancelColor}{\color{red}}
+  \usepackage{xcolor}
   \pagestyle{fancy}
   \fancyhf{}  % limpa tudo antes de configurar
 
   % Cabeçalho: seção à esquerda (ou capítulo) e número da página à direita
   \fancyhead[L]{\nouppercase{\leftmark}}  % mostra seção atual (ou capítulo)
   \fancyhead[R]{\thepage}
-
+  
   % Rodapé vazio (ou coloque algo no centro, se quiser)
   \fancyfoot[C]{}
 knitr:
@@ -35,6 +38,13 @@ knitr:
 Neste relatório, abordamos os principais conceitos relacionados às seguintes distribuições de probabilidade: Bernoulli, Binomial, Multinomial, Poisson, Exponencial, Geométrica, Hipergeométrica, Gama e Weibull. Essas distribuições são fundamentais para a modelagem estatística, especialmente em contextos de análise de sobrevivência, pois permitem descrever a probabilidade de ocorrência de eventos discretos (como sucesso, falha, etc.) e contínuos (como tempo até a falha ou tempo de vida útil de um sistema).
 
 Neste estudo, geraremos amostras com 1000 observações de cada uma dessas distribuições. Em seguida, construiremos gráficos de barras para variáveis discretas e histogramas para variáveis contínuas, a fim de visualizar o comportamento de suas respectivas probabilidades.
+```{r setup,include=FALSE}
+knitr::opts_chunk$set(
+  fig.width = 6, # largura em polegadas (exemplo: 5)
+  fig.height = 4, # altura em polegadas (exemplo: 3)
+  fig.align = "center"
+)
+```
 
 ```{r, message=FALSE, warning=FALSE}
 # Configuração de reprodutibilidade
@@ -58,11 +68,17 @@ $$
 
 Onde $X$ representa a variável aleatória que indica o resultado do experimento.
 
-As propriedades fundamentais da distribuição de Bernoulli são:
+### Esperança
+
+A esperança da variável $X_i$ é dada por:
 
 $$
 E(X) = \mathbb{P}(X = 1) \cdot 1 + \mathbb{P}(X = 0) \cdot 0 = p
 $$
+
+### Variância
+
+Utilizando a identidade $\text{Var}(X_i) = E(X_i^2) - [E(X_i)]^2$, temos:
 
 $$
 \text{Var}(X) = E(X^2) - [E(X)]^2 = p(1 - p) = pq
@@ -112,13 +128,430 @@ Onde:
 \begin{itemize}
   \item $n$: número total de tentativas;
   \item $k$: número de sucessos;
-  \item $\binom{n}{k}$: coeficiente binomial, que representa o número de maneiras de escolher $k$ sucessos em $n$ tentativas.
+  \item $\binom{n}{k}$: coeficiente binomial, que representa o número de combinações de $n$ termos, $k$ a $k$.
 \end{itemize}
 
-Nota-se que quando $n = 1$, a distribuição binomial se reduz à distribuição de Bernoulli. Por isso foi utilizado `rbinom(n, 1, p)` no exemplo \@ref(exemplo-bernoulli).
+Nota-se que quando $n = 1$, a distribuição binomial se reduz à distribuição de Bernoulli. Por isso, foi utilizado `rbinom(n, 1, p)` no exemplo \@ref(exemplo-bernoulli).
 
-A distribuição binomial possui as seguintes propriedades:
+### Esperança
+
+A esperança da variável $X_i$ é dada por:
 
 $$
-E(x) = 
+E(X^i) = \sum_{k=0}^{n} k^i \cdot \binom{n}{k} p^k \cdot (1 - p)^{n - k}
+= \sum_{k=0}^{n} k \cdot k^{i-1} \cdot \binom{n}{k} \cdot p \cdot p^{k-1} \cdot (1 - p)^{n - k}
 $$
+
+$$
+= \sum_{k=0}^{n} \cancel{k} \cdot k^{i-1} \cdot \frac{n \cdot (n - 1)!}{\cancel{k} \cdot (k - 1)! \cdot (n - k)!} 
+\cdot p \cdot p^{k-1} \cdot (1 - p)^{n - k}
+= n \cdot p \sum_{k=0}^{n} k^{i-1} \cdot \frac{(n - 1)!}{(k - 1)! \cdot (n - k)!} 
+\cdot p^{k-1} \cdot (1 - p)^{n - k}
+$$
+
+Aplicando a substituição de índice:
+
+$$
+k = j + 1 \Rightarrow k - 1 = j
+$$
+
+Obtemos:
+
+$$
+E(X^i) = n \cdot p \sum_{j=0}^{n-1} (j + 1)^{i-1} \cdot \frac{(n - 1)!}{j! \cdot (n - j - 1)!} 
+\cdot p^{j} \cdot (1 - p)^{n - j - 1}
+= n \cdot p \sum_{j=0}^{n-1} (j + 1)^{i-1} \cdot \binom{n - 1}{j} \cdot p^{j} \cdot (1 - p)^{n - j - 1}
+$$
+
+Reconhecendo a estrutura esperada de um momento da distribuição binomial de ordem $n-1$, temos:
+
+$$
+E(X^i) = n \cdot p \cdot E\left[(j + 1)^{i-1}\right], \quad \text{onde } j \sim \text{Binomial}(n - 1, p)
+$$
+
+Portanto, ao aplicar a propriedade recursiva para o primeiro momento ($i = 1$), temos:
+
+$$
+E(X) = n \cdot p \cdot E(X^{0}) = n \cdot p \cdot 1 = n \cdot p
+$$
+
+### Variância
+
+Utilizando a identidade $\text{Var}(X_i) = E(X_i^2) - [E(X_i)]^2$, temos:
+
+$$
+\text{Var}(X) = E(X^2) - [E(X)]^2 
+= n \cdot p \cdot E[(j + 1)^{2 - 1}] - n^2 \cdot p^2 
+= n \cdot p \cdot ((n - 1)\cdot p + 1) - n^2 \cdot p^2
+$$
+
+$$
+= n \cdot p \cdot (n \cdot p - p + 1) - n^2 \cdot p^2 
+= \cancel{n^2 \cdot p^2} - n \cdot p^2 + n \cdot p - \cancel{n^2 \cdot p^2} 
+= n \cdot p \cdot (1 - p) = n \cdot p \cdot q
+$$
+
+### Exemplo {#exemplo-binomial}
+```{r binomial-plot, fig.cap="Distribuição Binomial", fig.align='center'}
+k <- 100
+
+binomial <- rbinom(n, k, 0.7)
+
+barplot(
+  table(binomial),
+  main = "Distribuição Binomial (n = 1000, k = 100, p = 0.7)",
+  col = "#55a802",
+  ylab = "Frequência",
+  xlab = "Número de Sucessos"
+)
+```
+
+```{r, message=FALSE, warning=FALSE}
+print(paste("Esperança:", mean(binomial), " | ", "k * p = ", k * p))
+print(paste("Variância:", round(var(binomial), 4), " | ", "k * p * q = ", k * p * (1 - p)))
+```
+
+Com isso, podemos ver que a média e a variância empírica da amostra de uma variável aleatória que segue uma distribuição binomial com parâmetros $n$ e $p$ se aproximam dos valores teóricos $E(X) = n \cdot p$ e $\text{Var}(X) = n \cdot p \cdot q$, confirmando as propiedades demonstradas.
+
+## Distribuição Multinomial
+
+A distribuição multinomial é uma generalização da distribuição binomial para experimentos com mais de dois possíveis resultados. Ela é usada quando realizamos $n$ experimentos independentes, cada um resultando em exatamente uma das $k$ categorias possíveis. Cada categoria $i = 1, 2, \ldots, k$ tem uma probabilidade associada $p_i$, com $\sum_{i=1}^{k} p_i = 1$. A função de massa de probabilidade da distribuição é dada por:
+
+$$
+P(X_1 = n_1, \ldots, X_k = n_k) = \binom{n}{n_1, n_2, \ldots, n_k} \cdot p_1^{n_1} \cdots p_k^{n_k}
+$$
+
+Podemos expandir o coeficiente multinomial como:
+
+$$
+= \frac{n!}{n_1! \cdot \cancel{(n - n_1)!}} \cdot \frac{\cancel{(n - n_1)!}}{n_2! \cdot \cancel{(n - n_1 - n_2)!}} \cdots \frac{\cancel{(n - n_1 - \cdots - n_{k-1})!}}{n_k! \cdot 0!}
+\cdot p_1^{n_1} \cdots p_k^{n_k}
+$$
+
+Resultando em:
+
+$$
+= \frac{n!}{n_1! \cdots n_k!} \cdot p_1^{n_1} \cdots p_k^{n_k}
+$$
+
+Onde:
+\begin{itemize}
+  \item $X_i$: número de ocorrências da categoria $i$;
+  \item $n$: número total de experimentos;
+  \item $n_i$: número de vezes que a categoria $i$ ocorreu (ou seja, $X_i = n_i$);
+  \item $p_i$: probabilidade de ocorrência da categoria $i$.
+\end{itemize}
+### Esperança
+
+A esperança da variável $X_i$ é dada por:
+
+$$
+E(X_i) = \sum_{x_1 + \cdots + x_k = n} X_i \cdot \frac{n!}{x_1! \cdots x_k!} \cdot p_1^{x_1} \cdots p_k^{x_k}
+$$
+
+Aplicando a manipulação:
+
+$$
+E(X_i) = n \cdot p_i \cdot 
+\cancelto{1}{
+  \sum \frac{(n - 1)!}{
+    (x_1 - \delta_{1i})! \cdots (x_k - \delta_{ki})!
+  }
+  \cdot p_1^{x_1 - \delta_{1i}} \cdots p_k^{x_k - \delta_{ki}}
+}
+\text{,} \quad 
+\delta_{ji} =
+\begin{cases}
+  1, & \text{se } j = i \\
+  0, & \text{caso contrário}
+\end{cases}
+$$
+
+Essa soma corresponde a uma distribuição multinomial de ordem $(n - 1)$ e soma 1:
+
+$$
+\Rightarrow E(X_i) = n \cdot p_i
+$$
+
+### Variância
+
+Utilizando a identidade $\text{Var}(X_i) = E(X_i^2) - [E(X_i)]^2$, temos:
+
+$$
+E(X_i^2) = E(X_i(X_i - 1)) + E(X_i)
+$$
+
+Sabendo que:
+
+$$
+E(X_i(X_i - 1)) = n(n - 1)p_i^2 \quad \text{e} \quad E(X_i) = np_i
+$$
+
+Substituímos:
+
+$$
+\text{Var}(X_i) = n(n - 1)p_i^2 + np_i - (np_i)^2
+= n^2p_i^2 - np_i^2 + np_i - n^2p_i^2
+$$
+
+$$
+= -np_i^2 + np_i = np_i(1 - p_i)
+$$
+
+Logo, a variância da variável $X_i$ na distribuição multinomial é:
+
+$$
+\text{Var}(X_i) = np_i(1 - p_i)
+$$
+
+### Exemplo {#exemplo-multinomial}
+
+```{r, warning=FALSE, message=FALSE}
+class <- 4
+ps <- c(p, rep((1 - p) / (class - 1), class - 1))
+multnom <- rmultinom(n, size = k, prob = ps)
+frequencias <- rowSums(multnom)
+```
+\newpage
+```{r multinom-plot, fig.cap="Distribuição Multinomial", fig.align='center'}
+barplot(
+  frequencias,
+  names.arg = paste("Classe", 1:class),
+  col = colorRampPalette(c("#b2df8a", "#33a02c"))(class),
+  main = paste("Distribuição Multinomial: n =", n, ", size =", k, "class =", class),
+  cex.main = 0.9,
+  xlab = "Classe",
+  ylab = "Frequência"
+)
+```
+
+```{r, warning=FALSE, message=FALSE}
+E_empirica <- rowSums(multnom) / n
+E_teorica <- k * ps
+
+data.frame(
+  Classe = paste0("Classe ", 1:length(ps)),
+  `E(empírica` = round(E_empirica, 3),
+  `E(teórica` = round(E_teorica, 3)
+)
+```
+
+Dado um experimento multinomial com $n = 1000$, tamanho de ensaio $k = 100$, probabilidade da primeira classe $p_1 = 0.7$ e as probabilidades restantes definidas como $p_i = \frac{1 - p_1}{\text{número de classes} - 1}$, totalizando 6 classes, observa-se que a média empírica se aproxima da média teórica, confirmando assim as propriedades esperadas da distribuição multinomial.
+
+## Distribuição de Poisson
+
+A distribuição de poisson é uma distribuição discreta que modela o número de eventos que ocorrem em um intervalo fixo de tempo, tendo uma taxa média de ocorrência $lambda$, constante e independente do tempo. Com isso, a função de massa de probabilidade é dada por:
+
+$$
+P(X = k) = \frac{\lambda^k \cdot e^{-\lambda}}{k!}, \quad k = 0, 1, 2, \ldots
+$$
+
+Onde:
+\begin{itemize}
+  \item $k$: Valor que a variável aleatória $X$ pode assumir (número de eventos);
+  \item $\lambda$: Taxa média de ocorrência de eventos no intervalo considerado;
+  \item $e$: Base do logaritmo natural, aproximadamente 2.71828.
+\end{itemize}
+
+### Esperança
+
+A esperança da variável $X$ é dada por:
+
+$$
+E(X) = \sum_{k=0}^{\infty} k \cdot P(X = k) = \sum_{k=0}^{\infty} k \cdot \frac{\lambda^k \cdot e^{-\lambda}}{k!}
+$$
+
+$$
+= \sum_{k=1}^{\infty} \lambda \cdot \cancel{k} \cdot \frac{\lambda^{k-1} \cdot e^{-\lambda}}{\cancel{k} \cdot (k-1)!} = \lambda \cdot e^{-\lambda} \sum_{k=1}^{\infty} \frac{\lambda^{k-1}}{(k-1)!}
+$$
+
+$$
+= \lambda \cdot e^{-\lambda} \cdot \cancelto{e^\lambda}{\left[\frac{\lambda^0}{0!} + \frac{\lambda^1}{1!} + \frac{\lambda^2}{2!} + \ldots \right]} = \lambda
+$$
+
+### Variância
+
+A variância da variável que segue a distribuição de Poisson é dada por:
+
+$$
+\text{Var}(X) = E(X^2) - [E(X)]^2 = \sum_{k=0}^{\infty} k^2 \cdot P(X = k) - \lambda^2 
+$$
+
+$$ 
+E(X^2)= 1^2\left[\frac{e^{-\lambda} \cdot \lambda^1}{1!}\right] + 2^2\left[\frac{e^{-\lambda} \cdot \lambda^2}{2!}\right] + 3^2\left[\frac{e^{-\lambda} \cdot \lambda^3}{3!}\right] + \ldots +  n^2\left[\frac{e^{-\lambda} \cdot \lambda^n}{n!} \right] + \cdots
+$$
+
+$$
+= e^{-\lambda} \cdot \lambda \left[1 + 2\cdot\lambda + 3\cdot\frac{\lambda^2}{2!} + \ldots + n\cdot\frac{\lambda^{n-1}}{(n-1)!} + \cdots \right]
+$$
+
+$$
+= e^{-\lambda} \cdot \lambda \cdot \sum_{n=1}^{\infty} n \cdot \frac{\lambda^{n-1}}{(n-1)!}\text{, onde } n - 1 = k \text{ e } n = k + 1 
+$$
+
+$$
+= e^{-\lambda} \cdot \lambda \cdot \left[
+0 + \frac{\lambda}{1!} + \frac{\cancel{2}\cdot \lambda^2}{\cancel{2!}} + \frac{\cancel{3}\cdot \lambda^{3}}{\cancel{3}\cdot 2!} + \ldots + e^{\lambda}
+\right]
+$$
+
+$$
+= e^{-\lambda} \cdot \lambda \cdot \left[
+\lambda \cancelto{e^{\lambda}}{\left(1 + \frac{\lambda}{1!} + \frac{\lambda^2}{2!} + \cdots + \frac{\lambda^{k-1}}{(k-1)!}\right)} + e^{\lambda}
+\right] = e^{-\lambda} \cdot \lambda \cdot [\lambda \cdot e^{\lambda} + e^{\lambda}] = e^{0} \cdot \lambda^2 + e^{0} \cdot \lambda = \lambda^2 + \lambda
+$$
+
+$$
+\text{Var}(X) = \cancel{\lambda^2} + \lambda - \cancel{\lambda^2} = \lambda
+$$
+
+### Exemplo {#exemplo-poisson}
+```{r poisson-plot, fig.cap="Distribuição de Poisson", fig.align='center'}
+lambda <- 5
+poisson <- rpois(n, lambda)
+
+barplot(
+  table(poisson),
+  main = paste("Distribuição de Poisson (lambda =", lambda, ")"),
+  col = "#55a802",
+  ylab = "Frequência",
+  xlab = "Número de Eventos"
+)
+```
+
+```{r, message=FALSE, warning=FALSE}
+print(paste("Esperança:", mean(poisson), " | ", "lambda = ", lambda))
+print(paste("Variância:", round(var(poisson), 4), " | ", "lambda = ", lambda))
+```
+
+Portanto, podemos observar que a média e a variância empírica da amostra de uma variável aleatória que segue uma distribuição de Poisson com parâmetro $\lambda$ se aproximam dos valores teóricos $E(X) = \lambda$ e $\text{Var}(X) = \lambda$, confirmando as propriedades esperadas da distribuição.
+
+## Distribuição Geométrica
+
+A distribuição geométrica modela o número de tentativas até a ocorrência do primeiro sucesso em uma sequência de experimentos de Bernoulli independentes. Sua função de massa de probabilidade é dada por:
+
+$$
+P(X = k) = (1 - p)^{k - 1} \cdot p, \quad k = 1, 2, \ldots
+$$
+
+### Esperança
+
+A esperança da variável aleatória \(X\) é calculada como:
+
+$$
+E(X) = \sum_{k=1}^{\infty} k \cdot P(X = k) = \sum_{k=1}^{\infty} k \cdot (1 - p)^{k - 1} \cdot p = p \cdot \sum_{k=1}^{\infty} k \cdot (1 - p)^{k-1}
+$$
+
+Denotando \(q = 1 - p\), reconhecemos que a soma é uma série geométrica diferenciada, cuja soma é:
+
+$$
+\sum_{k=1}^{\infty} k \cdot q^{k - 1} = \frac{1}{(1 - q)^2}
+$$
+
+Como \(1 - q = p\), temos:
+
+$$
+E(X) = \cancel{p} \cdot \frac{1}{p^{\cancel{2}}} = \frac{1}{p}
+$$
+
+### Variância
+
+A variância é obtida por:
+
+$$
+\text{Var}(X) = E(X^2) - [E(X)]^2 = E[X(X-1)] + E(X) - \left(\frac{1}{p}\right)^2
+$$
+
+onde:
+
+$$
+E[X(X-1)] = \sum_{k=2}^{\infty} k(k-1) \cdot q^{k - 1} \cdot p
+$$
+
+Utilizando as propriedades das séries geométricas diferenciadas, temos:
+
+1. Primeira derivada:
+
+$$
+\sum_{k=1}^{\infty} k \cdot q^{k - 1} = \frac{d}{dq} \sum_{k=0}^{\infty} q^k = \frac{1}{(1 - q)^2}
+$$
+
+2. Segunda derivada:
+
+$$
+\sum_{k=2}^{\infty} k(k-1) \cdot q^{k - 2} = \frac{d^2}{dq^2} \sum_{k=0}^{\infty} q^k = \frac{d^2}{dq^2} \left(\frac{1}{1 - q}\right) = \frac{2}{(1 - q)^3}
+$$
+
+Multiplicando por \(q\), obtemos:
+
+$$
+\sum_{k=2}^{\infty} k(k-1) \cdot q^{k - 1} = \frac{2q}{(1 - q)^3}
+$$
+
+Assim, substituindo na fórmula da variância:
+
+$$
+\text{Var}(X) = p \cdot \frac{2q}{(1 - q)^3} + \frac{1}{p} - \frac{1}{p^2} = \frac{2q p}{p^3} + \frac{1}{p} - \frac{1}{p^2} = \frac{2q}{p^2} + \frac{1}{p} - \frac{1}{p^2}
+$$
+
+Simplificando os termos:
+
+$$
+\text{Var}(X) = \frac{2q + p - 1}{p^2} = \frac{1 - p}{p^2} = \frac{q}{p^2}
+$$
+
+
+### Exemplo {#exemplo-geom}
+
+```{r geom-plot, fig.cap="Distribuição Geométrica", fig.align='center'}
+geom <- rgeom(n, p) + 1
+
+barplot(
+  table(geom),
+  main = paste("Distribuição Geométrica (p =", p, ")"),
+  col = "#55a802",
+  ylab = "Frequência",
+  xlab = "Número de Tentativas"
+)
+```
+\newpage
+```{r, message=FALSE, warning=FALSE}
+print(paste("Esperança:", mean(geom), " | ", "1 / p = ", round(1 / p, 4)))
+print(paste("Variância:", round(var(geom), 4), " | ", "q / p^2 = ", round((1 - p) / p^2, 4)))
+```
+
+Como podemos ver o experimento do número de tentativas até o primeiro sucesso, seguindo uma distribuição geométrica com parâmetro \(p\), resulta em uma média e variância empíricas que se aproximam dos valores teóricos \(E(X) = \frac{1}{p}\) e \(\text{Var}(X) = \frac{1 - p}{p^2}\), confirmando as propriedades esperadas da distribuição.
+
+## Distribuição Hipergeométrica
+
+### Esperança
+
+### Variância
+
+### Exemplo {#exemplo-hgeom}
+
+# Distribuições Contínuas
+
+## Distribuição Exponencial 
+
+### Esperança
+
+### Variância
+
+### Exemplo {#exemplo-exp}
+
+## Distribuição Gamma
+
+### Esperança
+
+### Variância
+
+### Exemplo {#exemplo-gamma}
+
+## Distribuição Weibull
+
+### Esperança
+
+### Variância
+
+### Exemplo {#exemplo-weibull}
