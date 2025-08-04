@@ -1,0 +1,326 @@
+---
+title: 'Terceira Lista - Analise de Sobrevivência'
+author: "Gabriel D'assumpção de Carvalho"
+date: "`r Sys.Date()`"
+output:
+  bookdown::pdf_document2:
+    number_sections: true
+    toc: true
+    toc_depth: 2
+    fig_caption: true
+    dev: png
+    keep_tex: true
+always_allow_html: true
+knitr:
+  opts_chunk:
+    dev: "png"
+    dpi: 300
+    fig.align: "center"
+    fig.width: 7
+    fig.height: 5
+    echo: true
+    warning: false
+    message: false
+    screenshot.force: true
+header-includes: |
+  \usepackage{amsmath}
+  \usepackage{fancyhdr}
+  \usepackage{listings}
+  \usepackage{xcolor}
+  \usepackage{fvextra}
+    \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+      breaksymbolleft={},
+      showspaces = false,
+      showtabs = false,
+      breaklines,
+      commandchars=\\\{\}
+    }
+  \pagestyle{fancy}
+  \fancyhead[L]{2º Prova}
+  \fancyfoot[C]{Página \thepage}
+  \fancyhead[C]{}
+params:
+  digits: 4
+---
+
+\newpage
+
+
+# Introdução
+
+Este documento apresenta uma análise exploratória de sobrevivência com dados sobre hepatite, reincidência de tumor sólido e malária. A análise utilizará os estimadores de Kaplan-Meier, Nelson-Aalen e Atuarial para comparar as curvas de sobrevivência entre os grupos de cada conjunto de dados.
+
+```{r, message=FALSE, warning=FALSE}
+# Carregamento dos pacotes necessários
+
+# Pacote para análise de sobrevivência
+# install.packages("survival")
+library(survival)
+
+# Pacote para visualização dos dados
+# install.packages("ggplot2")
+library(ggplot2)
+```
+
+# Carregamento dos dados
+```{r, message=FALSE, warning=FALSE}
+########### Hepatite ###########
+hControle <- data.frame(
+  tempo = c(
+    1, 2, 3, 3, 3, 5, 5, 16, 16, 16, 16,
+    16, 16, 16, 16
+  ),
+  evento = c(0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+)
+
+hCasos <- data.frame(
+  tempo = c(
+    1, 1, 1, 1, 4, 5, 7, 8, 10, 10, 12, 16, 16,
+    16
+  ),
+  evento = c(1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0)
+)
+
+########### Malária ###########
+mG1 <- data.frame(
+  tempo = c(7, 8, 8, 8, 8, 12, 12, 17, 18, 22, 30, 30, 30, 30, 30, 30),
+  evento = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+)
+mG2 <- data.frame(
+  tempo = c(8, 8, 9, 10, 10, 14, 15, 15, 18, 19, 21, 22, 22, 23, 25),
+  evento = c(rep(1, 15))
+)
+mG3 <- data.frame(
+  tempo = c(8, 8, 8, 8, 8, 8, 9, 10, 10, 10, 11, 17, 19),
+  evento = c(rep(1, 13))
+)
+
+########### Reincidência de tumor sólido ###########
+tumorSolido <- data.frame(
+  tempo = c(3, 4, 5.7, 6.5, 6.5, 8.4, 10, 10, 12, 15),
+  evento = c(1, 0, 0, 1, 1, 0, 1, 0, 1, 1)
+)
+```
+
+# Funções de análise de sobrevivência
+```{r, message=FALSE, warning=FALSE}
+########### Estimador Atuarial ###########
+eact <- function(time, evento, classEvento = 1) {
+  tempo_evento <- sort(unique(time[evento == classEvento]))
+
+  data <- data.frame(
+    time = tempo_evento,
+    n_risk = NA,
+    n_event = NA,
+    censured = NA,
+    n_risk_adj = NA,
+    q_i = NA,
+    p_i = NA,
+    S_t_i = NA
+  )
+
+  S_t_back <- 1
+
+  for (i in seq_along(data$time)) {
+    t <- data$time[i]
+
+    data$n_risk[i] <- sum(time >= t)
+    data$n_event[i] <- sum(time == t & evento == classEvento)
+    data$censured[i] <- sum(time == t & evento != classEvento)
+    data$n_risk_adj[i] <- data$n_risk[i] - data$censured[i] / 2
+
+    if (data$n_risk_adj[i] 0) {
+      data$q_i[i] <- data$n_event[i] / data$n_risk_adj[i]
+      data$p_i[i] <- 1 - data$q_i[i]
+      data$S_t_i[i] <- S_t_back * data$p_i[i]
+      S_t_back <- data$S_t_i[i]
+    } else {
+      data$S_t_i[i] <- S_t_back
+    }
+  }
+
+  return(data)
+}
+
+########### Estimador de Kaplan-Meier ###########
+ekm <- function(time, evento, classEvento = 1, alpha = 0.05, conf = "normal") {
+  tempo_evento <- sort(unique(time[evento == classEvento]))
+
+  data <- data.frame(
+    time = tempo_evento,
+    n_risk = NA,
+    n_event = NA,
+    censured = NA,
+    q_i = NA,
+    p_i = NA,
+    S_t_i = NA,
+    std_error = NA,
+    lower = NA,
+    upper = NA
+  )
+
+  S_t_back <- 1
+
+  for (i in seq_along(data$time)) {
+    t <- data$time[i]
+
+    data$n_risk[i] <- sum(time >= t)
+    data$n_event[i] <- sum(time == t & evento == classEvento)
+    data$censured[i] <- sum(time == t & evento != classEvento)
+
+    if (data$n_risk[i] 0) {
+      data$q_i[i] <- data$n_event[i] / data$n_risk[i]
+      data$p_i[i] <- 1 - data$q_i[i]
+      data$S_t_i[i] <- S_t_back * data$p_i[i]
+      S_t_back <- data$S_t_i[i] 
+    } else {
+      data$S_t_i[i] <- S_t_back
+    }
+
+    var_S_t <- data$S_t_i[i]**2 * sum(data$n_event[1:i] /
+      (data$n_risk[1:i] * (data$n_risk[1:i] - data$n_event[1:i])))
+    
+    data$std_error[i] <- sqrt(var_S_t)
+
+    if (conf == "log-log") {
+      var_U_t <- (sum(data$n_event[1:i] / (data$n_risk[1:i] * (data$n_risk[1:i] - data$n_event[1:i])))) /
+        sum(log((data$n_risk[1:i] - data$n_event[1:i]) / data$n_risk[1:i]))**2
+      
+      data$upper[i] <- data$S_t_i[i]**(exp(+qnorm(alpha / 2) * sqrt(var_U_t)))
+
+      data$lower[i] <- data$S_t_i[i]**(exp(-qnorm(alpha / 2) * sqrt(var_U_t)))
+    }
+    if (conf == "normal") {
+      data$upper[i] <- data$S_t_i[i] + qnorm(1 - alpha / 2) * data$std_error[i]
+
+      data$lower[i] <- data$S_t_i[i] - qnorm(1 - alpha / 2) * data$std_error[i]
+    }
+    if (conf == "none") {
+      data$upper[i] <- NA
+      data$lower[i] <- NA
+  }
+
+  return(data)
+}
+
+########### Estimador de Nelson-Aalen ###########
+enelson <- function(time, evento, classEvento = 1, alpha = 0.05, conf = "normal") {
+  tempo_evento <- sort(unique(time[evento == classEvento]))
+
+  data <- data.frame(
+    time = tempo_evento,
+    n_risk = NA,
+    n_event = NA,
+    q_i = NA,
+    S_t_i = NA,
+    std_error = NA,
+    lower = NA,
+    upper = NA
+  )
+
+  for (i in seq_along(data$time)) {
+    t <- data$time[i]
+
+    data$n_risk[i] <- sum(time >= t)
+    data$n_event[i] <- sum(time == t & evento == classEvento)
+
+    if (data$n_risk[i] 0) {
+      data$q_i[i] <- data$n_event[i] / data$n_risk[i]
+      estimatorNelson <- sum(data$n_event[1:i] / data$n_risk[1:i])
+      data$S_t_i[i] <- exp(-estimatorNelson)
+    } else {
+      data$S_t_i[i] <- 1
+    }
+
+    var_S_t <- data$S_t_i[i]**2 * sum(data$n_event[1:i] / data$n_risk[1:i]**2)
+    data$std_error[i] <- sqrt(var_S_t)
+
+    if (conf == "log-log") {
+      var_U_t <- (sum(data$n_event[1:i] / (data$n_risk[1:i] * (data$n_risk[1:i] - data$n_event[1:i])))) /
+        sum(log((data$n_risk[1:i] - data$n_event[1:i]) / data$n_risk[1:i]))**2
+
+      data$upper[i] <- data$S_t_i[i]**(exp(+qnorm(alpha / 2) * sqrt(var_U_t)))
+
+      data$lower[i] <- data$S_t_i[i]**(exp(-qnorm(alpha / 2) * sqrt(var_U_t)))
+    }
+    
+    if (conf == 'normal') {
+      data$upper[i] <- data$S_t_i[i] + qnorm(1 - alpha / 2) * data$std_error[i]
+      data$lower[i] <- data$S_t_i[i] - qnorm(1 - alpha / 2) * data$std_error[i]
+    }
+  } 
+
+  return(data)
+}
+```
+
+```{r, message=FALSE, warning=FALSE}
+tempos<- c(1,2,3,3,3,5,5,16,16,16,16,16,16,16,16,1,1,1,1,4,5,7,8,10,10,12,16,16,16)
+cens<-c(0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,1,1,1,1,0,0,0,0,0)
+grupos<-c(rep(1,15),rep(2,14))
+ss<-(survfit(coxph(Surv(tempos[grupos==2],cens[grupos==2])~1,method = "breslow")))
+summary(ss)
+
+ena <- enelson(tempos[grupos == 2], cens[grupos == 2], 1, conf = "normal")
+```
+# Hepatite
+
+
+## Função de Sobrevivência $S(t)$
+
+A função de sobrevivência, $S(t)$, define a probabilidade de um indivíduo sobreviver além de um determinado tempo $t$. É expressa como:
+
+$$
+S(t) = P(T t) = 1 - F(t)
+$$
+
+onde $F(t)$ é a função de distribuição acumulada (FDA) do tempo de sobrevivência $T$. Para os casos contínuos, a função de sobrevivência é definida como:
+
+$$
+S(t) = 1 - \int_0^t f(u) \, du = \int_t^\infty f(u) \, du
+$$
+
+onde $f(u)$ é a função densidade de probabilidade (FDP) do tempo de sobrevivência. Para os casos discretos, ela é dada como:
+
+$$
+S(t) = \prod_{i: t_i \leq t} \left(1 - \frac{d_i}{n_i}\right)
+$$
+
+Sendo:
+
+\begin{itemize}
+  \item $t_i$: tempo em que ocorreu pelo menos um evento (falha);
+  \item $d_i$: número de eventos (falhas) observados no tempo $t_i$;
+  \item $n_i$: número de indivíduos em risco no tempo $t_i$.
+\end{itemize}
+
+Nota-se que até o momento não foi introduzido o conceito de censura. A censura ocorre quando o tempo de sobrevivência de um indivíduo não é completamente observada, ou seja, quando o evento de interesse (como falha ou morte) não acorre durante o período de observação.
+
+## Dados de Hepatite
+
+Foram escolhidos 29 pacientes com hepatite viral aguda e separados aleatóriamente em dois grupos. Os pacietnes foram acompanhados durante 4 meses ou até a falha ou censura do paciente. 
+
+\begin{itemize}
+  \item \textbf{Tipo de estudo:} Estudo clínico randomizado;
+  \item \textbf{Grupo de tratamento:} Pacientes que receberam terapia com esteroides;
+  \item \textbf{Grupo controle:} Pacientes que receberam placebo.
+\end{itemize}
+
+
+```{r, warning=FALSE, message=FALSE}
+survControle <- survfit(Surv(controle$tempo, controle$evento) ~ 1)
+print(summary(survControle))
+
+survCasos <- survfit(Surv(casos$tempo, casos$evento) ~ 1)
+print(summary(survCasos))
+survTumor1 <- survfit(Surv(tumorSolido$tempo, tumorSolido$evento) ~ 1, conf.type = "log-log")
+survTumor <- ekm(tumorSolido$tempo, tumorSolido$evento, 1)
+```   
+
+```{r, warning=FALSE, message=FALSE}
+ekmControle <- ekm(controle$tempo, controle$evento, 1)
+print(ekmControle)
+
+ekmCasos <- ekm(casos$tempo, casos$evento, 1)
+print(ekmCasos)
+```

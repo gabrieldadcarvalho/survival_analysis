@@ -1,5 +1,5 @@
 ---
-title: 'Conceitos Sobre Distribuições de Probabilidade'
+title: "Conceitos Sobre Distribuições de Probabilidade"
 author: "Gabriel D'assumpção de Carvalho"
 date: "`r Sys.Date()`"
 output:
@@ -8,27 +8,43 @@ output:
     toc: true
     toc_depth: 2
     fig_caption: true
+    dev: png
+    keep_tex: true
+always_allow_html: true
+knitr:
+  opts_chunk:
     dev: "png"
-params:
-  digits: 4
+    dpi: 300
+    fig.align: "center"
+    fig.width: 7
+    fig.height: 5
+    echo: true
+    warning: false
+    message: false
+    screenshot.force: true
 header-includes: |
   \usepackage{amsmath}
   \usepackage{fancyhdr}
+  \usepackage{listings}
+  \usepackage{xcolor}
   \usepackage{cancel}
   \renewcommand{\CancelColor}{\color{red}}
-  \usepackage{xcolor}
+  \usepackage{fvextra}
+    \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+      breaksymbolleft={},
+      showspaces = false,
+      showtabs = false,
+      breaklines,
+      commandchars=\\\{\}
+    }
   \pagestyle{fancy}
-  \fancyhf{}  % limpa tudo antes de configurar
-
-  % Cabeçalho: seção à esquerda (ou capítulo) e número da página à direita
-  \fancyhead[L]{\nouppercase{\leftmark}}  % mostra seção atual (ou capítulo)
+  \fancyhf{}  
+  \fancyhead[L]{\nouppercase{\leftmark}}
   \fancyhead[R]{\thepage}
-  
-  % Rodapé vazio (ou coloque algo no centro, se quiser)
-  \fancyfoot[C]{}
-knitr:
-  opts_chunk:
-    screenshot.force: TRUE
+  \fancyfoot[C]{Página \thepage}
+  \fancyhead[C]{}
+params:
+  digits: 4
 ---
 
 \newpage
@@ -532,26 +548,109 @@ Como podemos ver o experimento do número de tentativas até o primeiro sucesso,
 
 # Distribuições Contínuas
 
+Ao contrário das distribuições discretas, as distribuições contínuas modelam variáveis aleatórias que podem assumir um número infinito de valores dentro de um determinado intervalo. Essa característica fundamental implica o uso de cálculo integral para determinar a probabilidade de uma variável aleatória se encontrar em um intervalo específico. A seguir, exploraremos algumas das distribuições contínuas mais proeminentes e amplamente aplicadas no campo da estatística.
+Como a variável aleatória $X$ pode assumir qualquer valor não negativo, a probabilidade de $X$ assumir um valor específico é zero. Em vez disso, a distribuições contínuas são caracterizadas por uma função de densidade de probabilidade (FDP), que descreve a probabilidade de $X$ cair dentro de um intervalo específico. A integral da FDP sobre um intervalo fornece a probabilidade de $X$ estar dentro desse intervalo.
+
 ## Distribuição Exponencial 
+A distribuição exponencial é uma distribuição contínua que modela o tempo entre (distâncias) eventos em um processo de Poisson. Tendo os eventos independentes e ocorrendo a uma taxa constante, a função de densidade de probabilidade (FDP) é dada por:
+
+$$
+f(x; \lambda) = \lambda e^{-\lambda x}, \quad x \geq 0
+$$ 
+
+Com isso, a função de distribuição acumulada (FDA) é:
+$$
+F(x; \lambda) = \mathbb{P}(X \leq x) = 1 - e^{-\lambda x}, \quad x \geq 0
+$$
 
 ### Esperança
+A esperança da variável $X$ é dada por:
+$$
+E(X) = \int_0^\infty x f(x; \lambda) dx
+= \int_0^\infty x \lambda e^{-\lambda x} dx = \frac{1}{\lambda}
+$$
 
 ### Variância
+$$
+\text{Var}(X) = E(X^2) - [E(X)]^2 = \int_0^\infty x^2 f(x; \lambda) dx - \left(\frac{1}{\lambda}\right)^2 = \frac{1}{\lambda^2}
+$$
 
 ### Exemplo {#exemplo-exp}
+```{r exp-plot, fig.cap="Distribuição Exponencial", fig.align='center'}
+lambda <- 0.5
+exp_data <- rexp(n, lambda)
+hist(exp_data,
+  breaks = 30, probability = TRUE,
+  main = paste("Distribuição Exponencial (lambda =", lambda, ")"),
+  xlab = "Valor", ylab = "Densidade",
+  col = "#55a802", border = "white"
+)
+curve(dexp(x, lambda), add = TRUE, col = "blue", lwd = 2)
+legend("topright", legend = "FDP", col = "blue", lty = 1, lwd = 2)
+```
+
+```{r, message=FALSE, warning=FALSE}
+print(paste("Esperança:", round(mean(exp_data), 4), " | ", "1 / lambda = ", round(1 / lambda, 4)))
+print(paste("Variância:", round(var(exp_data), 4), " | ", "1 / lambda^2 = ", round(1 / lambda^2, 4)))
+```
+
+Como pode ser visto a média e a variância empíricas da amostra de uma variável aleatória que segue uma distribuição exponencial com parâmetro $\lambda$ se aproximam dos valores teóricos $E(X) = \frac{1}{\lambda}$ e $\text{Var}(X) = \frac{1}{\lambda^2}$, confirmando as propriedades esperadas da distribuição.
 
 ## Distribuição Gamma
 
+A distribuição Gamma é uma generalização da distribuição Exponencial, utilizada para modelar o **tempo até a ocorrência do $\alpha$-ésimo evento** em um processo de Poisson. A função densidade de probabilidade (FDP), na parametrização com taxa $\beta$, é:
+
+$$
+f(x; \alpha, \beta) = \frac{\beta^\alpha x^{\alpha - 1} e^{-\beta x}}{\Gamma(\alpha)}, \quad x \geq 0
+$$
+
+Quando $\alpha = 1$, essa expressão se reduz à distribuição Exponencial com parâmetro $\beta$:
+
+$$
+f(x; 1, \beta) = \beta e^{-\beta x}
+$$
+
+A função de distribuição acumulada (FDA) é dada pela função gama incompleta regularizada:
+
+$$
+F(x; \alpha, \beta) = \int_0^x f(t; \alpha, \beta) dt = \frac{\gamma(\alpha, \beta x)}{\Gamma(\alpha)}
+$$
+
 ### Esperança
 
+A esperança da variável aleatória $X$ é:
+
+$$
+\mathbb{E}(X) = \frac{\alpha}{\beta}
+$$
+
 ### Variância
+
+A variância é:
+
+$$
+\text{Var}(X) = \frac{\alpha}{\beta^2}
+$$
 
 ### Exemplo {#exemplo-gamma}
+```{r gamma-plot, fig.cap="Distribuição Gamma", fig.align='center'}
+alpha <- 2
+beta <- 1
+gamma_data <- rgamma(n, shape = alpha, scale = 1 / beta)
+hist(gamma_data,
+  breaks = 30, probability = TRUE,
+  main = paste("Distribuição Gamma (alpha =", alpha, ", beta =", beta, ")"),
+  xlab = "Valor", ylab = "Densidade",
+  col = "#55a802", border = "white"
+)
+curve(dgamma(x, shape = alpha, scale = 1 / beta), add = TRUE, col = "blue", lwd = 2)
+legend("topright", legend = "FDP", col = "blue", lty = 1, lwd = 2)
+```
 
-## Distribuição Weibull
+```{r, message=FALSE, warning=FALSE}
+print(paste("Esperança:", round(mean(gamma_data), 4), " | ", "alpha / beta = ", round(alpha / beta, 4)))
+print(paste("Variância:", round(var(gamma_data), 4), " | ", "alpha / beta^2 = ", round(alpha / beta^2, 4)))
+```
 
-### Esperança
+Podemos observar que a média e a variância empíricas da amostra de uma variável aleatória que segue uma distribuição Gamma com parâmetros $\alpha$ e $\beta$ se aproximam dos valores teóricos $E(X) = \frac{\alpha}{\beta}$ e $\text{Var}(X) = \frac{\alpha}{\beta^2}$, confirmando as propriedades esperadas da distribuição.
 
-### Variância
-
-### Exemplo {#exemplo-weibull}
