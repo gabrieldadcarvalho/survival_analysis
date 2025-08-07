@@ -74,7 +74,7 @@ A seguir vamos estruturar as funções de sobrevida não paramétricas, onde vai
 
 ```{r, message=FALSE, warning=FALSE}
 ########## Estimador Atuarial ###########
-eact <- function(time, evento, classEvento = 1, alpha = 0.05, conf = "normal") {
+eaa <- function(time, evento, classEvento = 1, alpha = 0.05, conf = "normal") {
   tempo_evento <- sort(unique(time[evento == classEvento]))
 
   data <- data.frame(
@@ -217,13 +217,14 @@ ekm <- function(time, evento, classEvento = 1, alpha = 0.05, conf = "normal") {
 
 
 ########## Estimador de Nelson-Aalen ###########
-enelson <- function(time, evento, classEvento = 1, alpha = 0.05, conf = "normal") {
+ena <- function(time, evento, classEvento = 1, alpha = 0.05, conf = "normal") {
   tempo_evento <- sort(unique(time[evento == classEvento]))
 
   data <- data.frame(
     time = tempo_evento,
     n_risk = NA,
     n_event = NA,
+    censured = NA,
     q_i = NA,
     p_i = NA,
     S_t_i = NA,
@@ -241,6 +242,7 @@ enelson <- function(time, evento, classEvento = 1, alpha = 0.05, conf = "normal"
     if (data$n_risk[i] > 0) {
       data$q_i[i] <- data$n_event[i] / data$n_risk[i]
       data$p_i[i] <- 1 - data$q_i[i]
+      data$censured[i] <- sum(time == t & evento != classEvento)
       estimatorNelson <- sum(data$n_event[1:i] / data$n_risk[1:i])
       data$S_t_i[i] <- exp(-estimatorNelson)
     } else {
@@ -282,6 +284,57 @@ enelson <- function(time, evento, classEvento = 1, alpha = 0.05, conf = "normal"
 
   return(data)
 }
+
+
+########## Teste Log-Rank ###########
+logrank <- function(dadosGrupo1, dadosGrupo2) {
+  time <- sort(unique(c(dadosGrupo1$time, dadosGrupo2$time)))
+
+  O1_total <- 0 # Observado no grupo 1
+  O2_total <- 0 # Observado no grupo 2
+  E1_total <- 0 # Esperado no grupo 1
+  E2_total <- 0 # Esperado no grupo 2
+  V_total <- 0 # Variância acumulada
+
+  for (t in time) {
+    n1 <- sum(dadosGrupo1$time >= t)
+    n2 <- sum(dadosGrupo2$time >= t)
+
+    d1 <- sum(dadosGrupo1$time == t & dadosGrupo1$evento == 1)
+    d2 <- sum(dadosGrupo2$time == t & dadosGrupo2$evento == 1)
+
+    d <- d1 + d2
+    n <- n1 + n2
+
+    if (d > 0 && n > 1) {
+      E1 <- d * (n1 / n)
+      E2 <- d * (n2 / n)
+      V <- d * (n1 / n) * (n2 / n) * ((n - d) / (n - 1))
+
+      O1_total <- O1_total + d1
+      O2_total <- O2_total + d2
+      E1_total <- E1_total + E1
+      E2_total <- E2_total + E2
+      V_total <- V_total + V
+    }
+  }
+
+  Z <- (O1_total - E1_total)^2 / V_total
+  p_value <- 1 - pchisq(Z, df = 1)
+
+  tabela <- data.frame(
+    Grupo = c("Grupo 1", "Grupo 2"),
+    Observado = c(O1_total, O2_total),
+    Esperado = c(E1_total, E2_total)
+  )
+
+  print(tabela)
+  cat("\nVariância total:", round(V_total, 4))
+  cat("\nEstatística do teste (Chi²):", round(Z, 4))
+  cat("\np-valor:", round(p_value, 4), "\n")
+
+  invisible(list(tabela = tabela, chi2 = Z, p = p_value))
+}
 ```
 
 # Hepatite
@@ -297,7 +350,7 @@ Neste estudo, foram analisados dados de pacientes com hepatite viral aguda. O ob
 ```{r, message=FALSE, warning=FALSE}
 ########### Hepatite ###########
 hControle <- data.frame(
-  tempo = c(
+  time = c(
     1, 2, 3, 3, 3, 5, 5, 16, 16, 16, 16,
     16, 16, 16, 16
   ),
@@ -305,7 +358,7 @@ hControle <- data.frame(
 )
 
 hCasos <- data.frame(
-  tempo = c(
+  time = c(
     1, 1, 1, 1, 4, 5, 7, 8, 10, 10, 12, 16, 16,
     16
   ),
@@ -317,13 +370,13 @@ Como os tempos até a falha são registrados em semanas (uma variável discreta)
 
 ```{r, message=FALSE, warning=FALSE}
 dados <- rbind(
-  data.frame(tempo = hControle$tempo[hControle$evento == 1], grupo = "Controle"),
-  data.frame(tempo = hCasos$tempo[hCasos$evento == 1], grupo = "Casos")
+  data.frame(time = hControle$time[hControle$evento == 1], grupo = "Controle"),
+  data.frame(time = hCasos$time[hCasos$evento == 1], grupo = "Casos")
 )
 
-dados$tempo <- factor(dados$tempo, levels = sort(unique(dados$tempo)))
+dados$time <- factor(dados$time, levels = sort(unique(dados$time)))
 
-ggplot(dados, aes(x = tempo, fill = grupo)) +
+ggplot(dados, aes(x = time, fill = grupo)) +
   geom_bar(position = "identity", alpha = 0.5, color = "#050505", width = 0.5) +
   labs(
     title = "Gráfico de Barras dos Tempos até o Evento - Hepatite",
@@ -336,9 +389,9 @@ ggplot(dados, aes(x = tempo, fill = grupo)) +
 ```
 
 ```{r, message=FALSE, warning=FALSE}
-print(length(hControle$tempo))
+print(length(hControle$time))
 
-print(length(hCasos$tempo))
+print(length(hCasos$time))
 ```
 
 A análise do gráfico de barras revela diferenças marcantes na ocorrência de falhas entre os grupos. O grupo Controle, composto por 15 indivíduos, registrou apenas dois eventos de falha, ambos na terceira semana. Em contrapartida, o grupo Casos, com 14 indivíduos, apresentou sete eventos, distribuídos ao longo do estudo: três na primeira semana e os demais nas semanas 5, 7, 8 e 10.
@@ -351,14 +404,14 @@ A seguir, vamos calcular as curvas de sobrevivência para os grupos controle e c
 
 ```{r, warning=FALSE, message=FALSE}
 ekmControle <- ekm(
-  time = hControle$tempo,
+  time = hControle$time,
   evento = hControle$evento,
   classEvento = 1,
   alpha = 0.05,
   conf = "log-log"
 )
 ekmCasos <- ekm(
-  time = hCasos$tempo,
+  time = hCasos$time,
   evento = hCasos$evento,
   classEvento = 1,
   alpha = 0.05,
@@ -371,7 +424,6 @@ print(ekmControle)
 ```
 
 Ao analisar a tabela gerada pela função criada no início deste relatório, observa-se que o grupo controle apresenta uma taxa de sobrevivência estimada em aproximadamente 0,846 na terceira semana, com desvio padrão em torno de 0,1. O intervalo de confiança calculado pelo método log-log situa-se entre aproximadamente 0,81 e 0,876.
-
 
 ```{r, warning=FALSE, message=FALSE}
 print(ekmCasos)
@@ -415,7 +467,7 @@ ggplot() +
   scale_color_manual(values = c("Controle" = "#1b9e77", "Casos" = "#d95f02")) +
   scale_fill_manual(values = c("Controle" = "#1b9e77", "Casos" = "#d95f02")) +
   labs(
-    title = "Curvas de Sobrevivência - Estimador Kaplan-Meier",
+    title = "Curvas de Sobrevivência de Hepatite - Estimador Kaplan-Meier",
     x = "Tempo (semanas)",
     y = "Probabilidade de Sobrevivência",
     color = "Grupo",
@@ -427,21 +479,19 @@ ggplot() +
 
 O gráfico de Kaplan-Meier ilustra uma nítida separação entre as curvas de sobrevivência dos grupos controle e casos, com o grupo controle mantendo consistentemente uma taxa de sobrevivência mais elevada. A distância entre as curvas é menor no início do acompanhamento, particularmente entre a terceira e a quinta semana, mas se acentua marcadamente a partir deste ponto, indicando uma divergência crescente nos desfechos. Adicionalmente, é notável o alargamento do intervalo de confiança para o grupo de casos ao longo do tempo. Esse aumento da incerteza reflete a diminuição do número de indivíduos em risco, o que torna a estimativa da taxa de sobrevivência progressivamente menos precisa.
 
-### Teste Logrank
-
 ## Estimador Atuarial
 
 A diante, utilizamos o estimador atuarial para calcular as curvas de sobrevivência dos grupos controle e casos. As curvas resultantes serão plotadas para permitir uma comparação visual entre os grupos, evidenciando possíveis diferenças nos padrões de sobrevivência ao longo do tempo.
 
 ```{r, warning=FALSE, message=FALSE}
-eactControle <- eact(
-  time = hControle$tempo,
+eaaControle <- eaa(
+  time = hControle$time,
   evento = hControle$evento,
   classEvento = 1,
   conf = "log-log"
 )
-eactCasos <- eact(
-  time = hCasos$tempo,
+eaaCasos <- eaa(
+  time = hCasos$time,
   evento = hCasos$evento,
   classEvento = 1,
   conf = "log-log"
@@ -449,14 +499,14 @@ eactCasos <- eact(
 ```
 
 ```{r, warning=FALSE, message=FALSE}
-print(eactControle)
+print(eaaControle)
 ```
 
 O método atuarial, que ajusta o denominador de risco ao assumir que as censuras ocorrem uniformemente ao longo de cada intervalo, oferece uma perspectiva ligeiramente diferente. Para o grupo controle, a sobrevida estimada é de aproximadamente 0,84, um valor um pouco menor que o estimado por Kaplan-Meier. Essa abordagem também resulta em um intervalo de confiança mais amplo (aproximadamente 0,800 a 0,872), refletindo uma maior incerteza na estimativa.
 
 
 ```{r, warning=FALSE, message=FALSE}
-print(eactCasos)
+print(eaaCasos)
 ```
 
 No grupo de casos, a estimativa atuarial de sobrevida na primeira semana é de 0,778, caindo para 0,424 na décima semana, o que corrobora a observação de que menos da metade dos indivíduos sobreviveu até esse ponto. O intervalo de confiança para a décima semana é notavelmente amplo (0,187 a 0,645), destacando a crescente incerteza à medida que o número de indivíduos em risco diminui.
@@ -465,40 +515,40 @@ Para representar corretamente a curva de sobrevivência pelo método atuarial, o
 
 ```{r, warning=FALSE, message=FALSE}
 # Adiciona manualmente os pontos iniciais e finais
-eactControle_ext <- eactControle %>%
+eaaControle_ext <- eaaControle %>%
   add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
   add_row(
     time = 16,
-    S_t_i = tail(eactControle$S_t_i, 1),
-    lower = tail(eactControle$lower, 1),
-    upper = tail(eactControle$upper, 1)
+    S_t_i = tail(eaaControle$S_t_i, 1),
+    lower = tail(eaaControle$lower, 1),
+    upper = tail(eaaControle$upper, 1)
   )
 
-eactCasos_ext <- eactCasos %>%
+eaaCasos_ext <- eaaCasos %>%
   add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
   add_row(
     time = 16,
-    S_t_i = tail(eactCasos$S_t_i, 1),
-    lower = tail(eactCasos$lower, 1),
-    upper = tail(eactCasos$upper, 1)
+    S_t_i = tail(eaaCasos$S_t_i, 1),
+    lower = tail(eaaCasos$lower, 1),
+    upper = tail(eaaCasos$upper, 1)
   )
 
 # Gráfico de sobrevivência atuarial com linhas suaves
 ggplot() +
-  geom_line(data = eactControle_ext, aes(x = time, y = S_t_i, color = "Controle"), size = 1.2) +
-  geom_line(data = eactCasos_ext, aes(x = time, y = S_t_i, color = "Casos"), size = 1.2) +
+  geom_line(data = eaaControle_ext, aes(x = time, y = S_t_i, color = "Controle"), size = 1.2) +
+  geom_line(data = eaaCasos_ext, aes(x = time, y = S_t_i, color = "Casos"), size = 1.2) +
   geom_ribbon(
-    data = eactControle_ext,
+    data = eaaControle_ext,
     aes(x = time, ymin = lower, ymax = upper, fill = "Controle"), alpha = 0.2
   ) +
   geom_ribbon(
-    data = eactCasos_ext,
+    data = eaaCasos_ext,
     aes(x = time, ymin = lower, ymax = upper, fill = "Casos"), alpha = 0.2
   ) +
   scale_color_manual(values = c("Controle" = "#1b9e77", "Casos" = "#d95f02")) +
   scale_fill_manual(values = c("Controle" = "#1b9e77", "Casos" = "#d95f02")) +
   labs(
-    title = "Curvas de Sobrevivência - Estimador Atuarial",
+    title = "Curvas de Sobrevivência de Hepatite - Estimador Atuarial",
     x = "Tempo (semanas)",
     y = "Probabilidade de Sobrevivência",
     color = "Grupo",
@@ -510,22 +560,20 @@ ggplot() +
 
 O gráfico de sobrevivência atuarial revela uma tendência semelhante à observada nas curvas de Kaplan-Meier, com o grupo controle apresentando uma taxa de sobrevivência mais alta ao longo do tempo. A curva do grupo controle inicia em 1 (100% de sobrevivência) e diminui gradualmente, enquanto a curva do grupo casos mostra uma queda mais acentuada, especialmente nas primeiras semanas. O intervalo de confiança para o grupo controle é relativamente estreito, indicando maior precisão na estimativa, enquanto o intervalo para o grupo casos é mais amplo, refletindo a incerteza crescente à medida que o número de indivíduos em risco diminui.
 
-### Teste Logrank
-
 ## Estimador de Nelson-Aalen
 
 A seguir, aplicaremos o estimador de Nelson-Aalen, que se baseia na função de risco acumulado para estimar a sobrevivência. Frequentemente, este método produz resultados muito próximos aos do Kaplan-Meier, embora as estimativas de sobrevivência tendam a ser ligeiramente superiores, oferecendo uma perspectiva complementar para a comparação entre os grupos.
 
 ```{r, warning=FALSE, message=FALSE}
-enelsonControle <- enelson(
-  time = hControle$tempo,
+enaControle <- ena(
+  time = hControle$time,
   evento = hControle$evento,
   classEvento = 1,
   alpha = 0.05,
   conf = "log-log"
 )
-enelsonCasos <- enelson(
-  time = hCasos$tempo,
+enaCasos <- ena(
+  time = hCasos$time,
   evento = hCasos$evento,
   classEvento = 1,
   alpha = 0.05,
@@ -534,13 +582,13 @@ enelsonCasos <- enelson(
 ```
 
 ```{r, warning=FALSE, message=FALSE}
-print(enelsonControle)
+print(enaControle)
 ```
 
 A análise com o estimador de Nelson-Aalen para o grupo controle indica uma taxa de sobrevivência de aproximadamente 0,857 na terceira semana, onde ocorreu o único evento. Este valor é ligeiramente superior ao estimado por Kaplan-Meier. Adicionalmente, o estimador de Nelson-Aalen resultou em um desvio padrão menor (0,093), o que se reflete em um intervalo de confiança mais estreito, de aproximadamente 0,827 a 0,883.
 
 ```{r, warning=FALSE, message=FALSE}
-print(enelsonCasos)
+print(enaCasos)
 ```
 
 Podemos notar também que o estimação da função de sobrevida para Nelson-Aalen é ligeiramente maior que a probabilidade $p_i$, nota-se essa diferença para o primeiro tempo, onde o estimador de Nelson-Aalen é 0,802, enquanto $p_1$ é 0,786. Difrente do Kaplan-Meier e o estimador atuarial, onde a função de sobrevida é o produtorio dos $p_i$. Além disso, podemos ver que o estiamdor de Nelson-Aalen é mais suave, tendo um probabilidade de sobreviver além da décima semana de aproximadament 0.468, mesmo assim corroborando para a observação de que menos da metade dos indivíduos sobreviveu até esse ponto. O intervalo de confiança para a décima semana é amplo (0,253 a 0,657), refletindo a crescente incerteza à medida que o número de indivíduos em risco diminui.
@@ -549,40 +597,40 @@ Abaixo conseguimos visualizar esse aumento da suavidade do estimador de Nelson-A
 
 ```{r, warning=FALSE, message=FALSE}
 # Adiciona manualmente os pontos iniciais e finais
-enelsonControle_ext <- enelsonControle %>%
+enaControle_ext <- enaControle %>%
   add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
   add_row(
     time = 16,
-    S_t_i = tail(enelsonControle$S_t_i, 1),
-    lower = tail(enelsonControle$lower, 1),
-    upper = tail(enelsonControle$upper, 1)
+    S_t_i = tail(enaControle$S_t_i, 1),
+    lower = tail(enaControle$lower, 1),
+    upper = tail(enaControle$upper, 1)
   )
 
-enelsonCasos_ext <- enelsonCasos %>%
+enaCasos_ext <- enaCasos %>%
   add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
   add_row(
     time = 16,
-    S_t_i = tail(enelsonCasos$S_t_i, 1),
-    lower = tail(enelsonCasos$lower, 1),
-    upper = tail(enelsonCasos$upper, 1)
+    S_t_i = tail(enaCasos$S_t_i, 1),
+    lower = tail(enaCasos$lower, 1),
+    upper = tail(enaCasos$upper, 1)
   )
 
 # Gráfico de escada Kaplan-Meier
 ggplot() +
-  geom_step(data = enelsonControle_ext, aes(x = time, y = S_t_i, color = "Controle"), size = 1.2) +
-  geom_step(data = enelsonCasos_ext, aes(x = time, y = S_t_i, color = "Casos"), size = 1.2) +
+  geom_step(data = enaControle_ext, aes(x = time, y = S_t_i, color = "Controle"), size = 1.2) +
+  geom_step(data = enaCasos_ext, aes(x = time, y = S_t_i, color = "Casos"), size = 1.2) +
   geom_ribbon(
-    data = enelsonControle_ext,
+    data = enaControle_ext,
     aes(x = time, ymin = lower, ymax = upper, fill = "Controle"), alpha = 0.2
   ) +
   geom_ribbon(
-    data = enelsonCasos_ext,
+    data = enaCasos_ext,
     aes(x = time, ymin = lower, ymax = upper, fill = "Casos"), alpha = 0.2
   ) +
   scale_color_manual(values = c("Controle" = "#1b9e77", "Casos" = "#d95f02")) +
   scale_fill_manual(values = c("Controle" = "#1b9e77", "Casos" = "#d95f02")) +
   labs(
-    title = "Curvas de Sobrevivência - Estimador de Nelson-Aalen",
+    title = "Curvas de Sobrevivência de Hepatite - Estimador de Nelson-Aalen",
     x = "Tempo (semanas)",
     y = "Probabilidade de Sobrevivência",
     color = "Grupo",
@@ -594,33 +642,359 @@ ggplot() +
 
 A visualização das curvas de Nelson-Aalen corrobora os achados dos métodos anteriores, confirmando o padrão de sobrevivência diferencial entre os grupos. A trajetória para o grupo controle demonstra um declínio suave, enquanto o grupo de casos experimenta uma redução mais abrupta na probabilidade de sobrevivência, principalmente no início do estudo. A precisão da estimativa, indicada pela largura da faixa de confiança, é notavelmente maior para o grupo controle. Em contrapartida, a faixa de confiança para o grupo de casos se alarga progressivamente, refletindo a maior incerteza associada à diminuição do número de indivíduos sob risco ao longo do tempo.
 
-### Teste Logrank
+## Teste Log-Rank
+
+Para avaliar formalmente se a diferença observada entre as curvas de sobrevivência é estatisticamente significativa, empregaremos o teste log-rank. Este teste de hipóteses não paramétrico compara as distribuições de sobrevivência de dois ou mais grupos, testando a hipótese nula de que não há diferença entre elas ao longo de todo o período de acompanhamento.
+
+```{r, warning=FALSE, message=FALSE}
+logrank(hCasos, hControle)
+```
+
+Como pode ser observado, o Grupo 1 (casos) apresentou 7 eventos observados, enquanto o número esperado sob a hipótese de igualdade entre os grupos era de aproximadamente 4,18. Já o Grupo 2 (controle) teve apenas 2 eventos observados, com uma expectativa de cerca de 4,81 eventos. Isso indica que o grupo de casos teve mais eventos do que o esperado, e o grupo controle, menos.
+
+Apesar dessa diferença, a estatística do teste qui-quadrado foi de aproximadamente 3,67, resultando em um p-valor de 0,0555 (5,55%). Esse valor está ligeiramente acima do limiar convencional de 0,05, o que sugere que não há evidência estatística suficiente, ao nível de 5%, para rejeitar a hipótese nula de que as curvas de sobrevivência são iguais.
+
+No entanto, como observado nas curvas estimadas pelos três métodos (Kaplan-Meier, Atuarial e Nelson-Aalen), a sobrevivência no grupo controle é consistentemente maior em todas as faixas de tempo. Com isso, pode-se adotar uma abordagem mais flexível e considerar a rejeição da hipótese nula em um nível de significância de 10%, reconhecendo uma tendência à diferença entre os grupos.
 
 # Malária
 
+Esse estudo experimental foi conduzido com 44 camundongos, com o intuito de identificar a eficácia da imunização contra a malária. Os camundongos foram divididos em três grupos, cada um recebendo um tratamento diferente:
+
+\begin{itemize}
+  \item \textbf{Grupo 1 (Controle):} Camundongos foram imunizados 3 dias antes da infecção pela esquistossomose.
+  \item \textbf{Grupo 2:} Não especificado.
+  \item \textbf{Grupo 3 (Tratamento B):} Só foi especificado que os camundongos foram infectados pela esquistossomose.
+\end{itemize}
+
+```{r, message=FALSE, warning=FALSE}
+########### Malária ###########
+mG1 <- data.frame(
+  time = c(7, 8, 8, 8, 8, 12, 12, 17, 18, 22, 30, 30, 30, 30, 30, 30),
+  evento = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0),
+  grupo = "Grupo 1"
+)
+mG2 <- data.frame(
+  time = c(8, 8, 9, 10, 10, 14, 15, 15, 18, 19, 21, 22, 22, 23, 25),
+  evento = c(rep(1, 15)),
+  grupo = "Grupo 2"
+)
+mG3 <- data.frame(
+  time = c(8, 8, 8, 8, 8, 8, 9, 10, 10, 10, 11, 17, 19),
+  evento = c(rep(1, 13)),
+  grupo = "Grupo 3"
+)
+```
+
+Como podemos ver acima, o tempo de sobrevida dos camundongos foi registrados em dias, portanto, um gráfico de barras é a escolha ideal para a visualizaçõ da distribuição dos eventos ao longo do tempo entre os 3 grupos.
+
+```{r, message=FALSE, warning=FALSE}
+# Junta os três grupos
+dadosMalaria <- bind_rows(mG1, mG2, mG3)
+
+# Filtra apenas os eventos (evento == 1)
+dadosEventos <- dadosMalaria %>% filter(evento == 1)
+
+# Gráfico com facetas e cores diferentes
+ggplot(dadosEventos, aes(x = time, fill = grupo)) +
+  geom_bar(
+    color = "black", width = 0.8
+  ) +
+  facet_wrap(~grupo, ncol = 1) + # Mude para nrow = 1 para mostrar lado a lado
+  labs(
+    title = "Frequência dos Tempos até o Evento - Malária",
+    x = "Tempo (dias)",
+    y = "Número de Eventos"
+  ) +
+  scale_x_continuous(breaks = sort(unique(dadosEventos$tempo))) +
+  scale_fill_manual(
+    values = c("Grupo 1" = "#1b9e77", "Grupo 2" = "#d95f02", "Grupo 3" = "#7570b3")
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+```{r, message=FALSE, warning=FALSE}
+print(paste("Número de camundongos no Grupo 1:", length(mG1$tempo), "| Número de falhas:", sum(mG1$evento)))
+print(paste("Número de camundongos no Grupo 2:", length(mG2$tempo), "| Número de falhas:", sum(mG2$evento)))
+print(paste("Número de camundongos no Grupo 3:", length(mG3$tempo), "| Número de falhas:", sum(mG3$evento)))
+```
+
+A análise da distribuição de eventos revela desfechos distintos para cada grupo. Notavelmente, os grupos 2 e 3 apresentaram 100% de mortalidade, com todos os 15 e 13 camundongos, respectivamente, vindo a óbito durante o estudo. Em contrapartida, o Grupo 1, que recebeu imunização prévia, registrou 10 falhas em 16 camundongos, indicando que parte do grupo sobreviveu até o final do período de observação.
+
+As falhas no Grupo 1 se concentraram principalmente no dia 8 (4 eventos), enquanto o Grupo 3 apresentou um pico de mortalidade ainda mais acentuado nesse mesmo dia (6 eventos) e no dia 10 (3 eventos). Já o Grupo 2 exibiu uma distribuição de falhas mais dispersa ao longo do tempo. Esses resultados preliminares sugerem que a imunização prévia conferiu ao Grupo 1 uma vantagem em termos de sobrevivência em relação aos demais. 
+
+A seguir, serão estimadas as curvas de sobrevivência para cada grupo utilizando os estimadores de Kaplan-Meier e Nelson-Aalen. Como as censuras ocorreram apenas após a ocorrência de todos os eventos em cada grupo, o estimador atuarial coincide com o de Kaplan-Meier nesse caso. Por fim, será aplicado o teste log-rank para comparar as curvas de sobrevivência entre os grupos.
 
 ## Estimador de Kaplan-Meier
 
-### Teste Bonferroni
+```{r, message=FALSE, warning=FALSE}
+ekmMalariaG1 <- ekm(
+  time = mG1$time,
+  evento = mG1$evento,
+  classEvento = 1,
+  alpha = 0.05,
+  conf = "log-log"
+)
+ekmMalariaG2 <- ekm(
+  time = mG2$time,
+  evento = mG2$evento,
+  classEvento = 1,
+  alpha = 0.05,
+  conf = "log-log"
+)
+ekmMalariaG3 <- ekm(
+  time = mG3$time,
+  evento = mG3$evento,
+  classEvento = 1,
+  alpha = 0.05,
+  conf = "log-log"
+)
+```
 
-## Estimador Atuarial
+```{r, message=FALSE, warning=FALSE}
+print(ekmMalariaG1)
+```
 
-### Teste Bonferroni
+A análise do Grupo 1 (imunizado) revela uma alta taxa de sobrevida inicial (0,938) até o dia 7, com um intervalo de confiança estreito (0,929 a 0,945). Contudo, uma queda acentuada ocorre no dia 8, onde se concentra o maior número de falhas, reduzindo a probabilidade de sobrevivência para 0,688. A mediana de sobrevivência para este grupo é alcançada no dia 17, quando a taxa atinge 0,500, indicando que metade dos camundongos imunizados sobreviveu além deste ponto. A última falha registrada ocorre no dia 22, com uma sobrevida estimada de 0,385 e um intervalo de confiança mais amplo (0,158 a 0,594), refletindo a maior incerteza devido ao menor número de indivíduos em risco.
+
+
+```{r, message=FALSE, warning=FALSE}
+print(ekmMalariaG2)
+```
+
+O Grupo 2, por sua vez, exibe uma dispersão de falhas mais gradual ao longo do tempo. A sobrevida inicial no dia 8 é de 0,867, mas decai progressivamente até que todos os camundongos venham a óbito no dia 25. A mediana de sobrevivência deste grupo é atingida no dia 15 (sobrevida de 0,467), dois dias antes do Grupo 1, indicando uma mortalidade geral mais rápida, apesar do declínio menos abrupto.
+
+
+```{r, message=FALSE, warning=FALSE}
+print(ekmMalariaG3)
+```
+
+O Grupo 3 demonstrou ser o mais vulnerável, sofrendo um impacto severo e imediato. Já no dia 8, a probabilidade de sobrevivência despenca para 0,538, com quase metade dos camundongos falhando. A mortalidade continua de forma acelerada, e no dia 19, todos os indivíduos do grupo já haviam morrido, destacando este como o pior desfecho entre os três.
+
+Para visualizar e comparar formalmente essas trajetórias, as curvas de sobrevivência de Kaplan-Meier para os três grupos são plotadas a seguir.
+
+```{r, message=FALSE, warning=FALSE}
+# Adiciona manualmente os pontos iniciais e finais
+ekmMalariaG1_ext <- ekmMalariaG1 %>%
+  add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
+  add_row(
+    time = 30,
+    S_t_i = tail(ekmMalariaG1$S_t_i, 1),
+    lower = tail(ekmMalariaG1$lower, 1),
+    upper = tail(ekmMalariaG1$upper, 1)
+  )
+ekmMalariaG2_ext <- ekmMalariaG2 %>%
+  add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
+  add_row(
+    time = 30,
+    S_t_i = tail(ekmMalariaG2$S_t_i, 1),
+    lower = tail(ekmMalariaG2$lower, 1),
+    upper = tail(ekmMalariaG2$upper, 1)
+  )
+ekmMalariaG3_ext <- ekmMalariaG3 %>%
+  add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
+  add_row(
+    time = 30,
+    S_t_i = tail(ekmMalariaG3$S_t_i, 1),
+    lower = tail(ekmMalariaG3$lower, 1),
+    upper = tail(ekmMalariaG3$upper, 1)
+  )
+
+ggplot() +
+  geom_step(data = ekmMalariaG1_ext, aes(x = time, y = S_t_i, color = "Grupo 1"), size = 1.2) +
+  geom_step(data = ekmMalariaG2_ext, aes(x = time, y = S_t_i, color = "Grupo 2"), size = 1.2) +
+  geom_step(data = ekmMalariaG3_ext, aes(x = time, y = S_t_i, color = "Grupo 3"), size = 1.2) +
+  geom_ribbon(
+    data = ekmMalariaG1_ext,
+    aes(x = time, ymin = lower, ymax = upper, fill = "Grupo 1"), alpha = 0.1
+  ) +
+  geom_ribbon(
+    data = ekmMalariaG2_ext,
+    aes(x = time, ymin = lower, ymax = upper, fill = "Grupo 2"), alpha = 0.1
+  ) +
+  geom_ribbon(
+    data = ekmMalariaG3_ext,
+    aes(x = time, ymin = lower, ymax = upper, fill = "Grupo 3"), alpha = 0.1
+  ) +
+  scale_color_manual(values = c("Grupo 1" = "#1b9e77", "Grupo 2" = "#d95f02", "Grupo 3" = "#7570b3")) +
+  scale_fill_manual(values = c("Grupo 1" = "#1b9e77", "Grupo 2" = "#d95f02", "Grupo 3" = "#7570b3")) +
+  labs(
+    title = "Curvas de Sobrevivência de Malária - Estimador Kaplan-Meier",
+    x = "Tempo (dias)",
+    y = "Probabilidade de Sobrevivência",
+    color = "Grupo",
+    fill = "Grupo"
+  ) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0, 30, 1))
+```
+
+O gráfico de Kaplan-Meier ilustra vividamente as distintas trajetórias de sobrevivência. A curva do Grupo 3 se destaca pela queda drástica e precoce, confirmando seu desfecho desfavorável. Em contraste, os Grupos 1 e 2 apresentam curvas inicialmente próximas, mas suas trajetórias divergem a partir do dia 18. Nesse ponto, o Grupo 2 entra em um declínio contínuo até a mortalidade total no dia 25. O Grupo 1, por outro lado, mantém uma taxa de sobrevivência mais estável, com a última falha ocorrendo no dia 22 e uma sobrevida final de aproximadamente 38,5%.
+
+Para validar estatisticamente as diferenças observadas visualmente, daremos continuidade à análise utilizando o estimador de Nelson-Aalen. Em seguida, aplicaremos o teste de Log-Rank para comparações par a par entre os grupos, com correção de Bonferroni, a fim de controlar o aumento do risco de erro tipo I decorrente das múltiplas comparações.
 
 ## Estimador de Nelson-Aalen
+```{r, message=FALSE, warning=FALSE}
+enaMalariaG1 <- ena(
+  time = mG1$time,
+  evento = mG1$evento,
+  classEvento = 1,
+  alpha = 0.05,
+  conf = "log-log"
+)
+enaMalariaG2 <- ena(
+  time = mG2$time,
+  evento = mG2$evento,
+  classEvento = 1,
+  alpha = 0.05,
+  conf = "log-log"
+)
+enaMalariaG3 <- ena(
+  time = mG3$time,
+  evento = mG3$evento,
+  classEvento = 1,
+  alpha = 0.05,
+  conf = "log-log"
+)
+```
 
-### Teste Bonferroni
+```{r, message=FALSE, warning=FALSE}
+print(enaMalariaG1)
+```
+
+A aplicação do estimador de Nelson-Aalen confirma as tendências gerais observadas, apresentando estimativas de sobrevivência ligeiramente mais otimistas que as do Kaplan-Meier. Por exemplo, no Grupo 1, a sobrevida estimada pelo Nelson-Aalen no dia 17 é de 0,537, enquanto pelo Kaplan-Meier é de 0,500.
+
+
+```{r, message=FALSE, warning=FALSE}
+print(enaMalariaG2)
+```
+
+No Grupo 2, a sobrevida estimada no dia 15 é de 0,497 pelo método de Nelson-Aalen, contra 0,467 pelo Kaplan-Meier. Vale destacar que o estimador de Nelson-Aalen nunca atinge zero, mesmo quando todos os indivíduos experimentam o evento, característica que resulta na manutenção de uma probabilidade de sobrevivência em torno de 0,497. Contudo, esse estimador apresenta intervalos de confiança mais amplos, refletindo a crescente incerteza à medida que o número de indivíduos em risco diminui.
+
+```{r, message=FALSE, warning=FALSE}
+print(enaMalariaG3)
+```
+
+No Grupo 3, a diferença também é notável no dia 9, com uma sobrevida estimada de 0,546 pelo Nelson-Aalen, em comparação com 0,538 pelo Kaplan-Meier. Apesar dessas pequenas variações numéricas, a interpretação geral dos resultados se mantém: o Grupo 1 apresenta melhor sobrevida, o Grupo 2 tem mortalidade intermediária, e o Grupo 3 mostra o desfecho mais rápido. A seguir, serão plotadas as curvas de sobrevivência de Nelson-Aalen para facilitar a comparação visual
+
+```{r, message=FALSE, warning=FALSE}
+# Adiciona manualmente os pontos iniciais e finais
+enaMalariaG1_ext <- enaMalariaG1 %>%
+  add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
+  add_row(
+    time = 30,
+    S_t_i = tail(enaMalariaG1$S_t_i, 1),
+    lower = tail(enaMalariaG1$lower, 1),
+    upper = tail(enaMalariaG1$upper, 1)
+  )
+enaMalariaG2_ext <- enaMalariaG2 %>%
+  add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
+  add_row(
+    time = 30,
+    S_t_i = tail(enaMalariaG2$S_t_i, 1),
+    lower = tail(enaMalariaG2$lower, 1),
+    upper = tail(enaMalariaG2$upper, 1)
+  )
+enaMalariaG3_ext <- enaMalariaG3 %>%
+  add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
+  add_row(
+    time = 30,
+    S_t_i = tail(enaMalariaG3$S_t_i, 1),
+    lower = tail(enaMalariaG3$lower, 1),
+    upper = tail(enaMalariaG3$upper, 1)
+  )
+ggplot() +
+  geom_step(data = enaMalariaG1_ext, aes(x = time, y = S_t_i, color = "Grupo 1"), size = 1.2) +
+  geom_step(data = enaMalariaG2_ext, aes(x = time, y = S_t_i, color = "Grupo 2"), size = 1.2) +
+  geom_step(data = enaMalariaG3_ext, aes(x = time, y = S_t_i, color = "Grupo 3"), size = 1.2) +
+  geom_ribbon(
+    data = enaMalariaG1_ext,
+    aes(x = time, ymin = lower, ymax = upper, fill = "Grupo 1"), alpha = 0.1
+  ) +
+  geom_ribbon(
+    data = enaMalariaG2_ext,
+    aes(x = time, ymin = lower, ymax = upper, fill = "Grupo 2"), alpha = 0.1
+  ) +
+  geom_ribbon(
+    data = enaMalariaG3_ext,
+    aes(x = time, ymin = lower, ymax = upper, fill = "Grupo 3"), alpha = 0.1
+  ) +
+  scale_color_manual(values = c("Grupo 1" = "#1b9e77", "Grupo 2" = "#d95f02", "Grupo 3" = "#7570b3")) +
+  scale_fill_manual(values = c("Grupo 1" = "#1b9e77", "Grupo 2" = "#d95f02", "Grupo 3" = "#7570b3")) +
+  labs(
+    title = "Curvas de Sobrevivência de Malária - Estimador de Nelson-Aalen",
+    x = "Tempo (dias)",
+    y = "Probabilidade de Sobrevivência",
+    color = "Grupo",
+    fill = "Grupo"
+  ) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0, 30, 1))
+```
+
+Podemos observar no gráfico acima que o estimador de Nelson-Aalen segue a mesma tendência apresentada pelo Kaplan-Meier, embora apresente intervalos de confiança mais amplos para os três grupos.
+
+## Teste Log-Rank
+
+Como mencionado anteriormente, o teste log-rank será utilizado para comparar as curvas de sobrevivência entre os grupos. Dado que estamos realizando múltiplas comparações (Grupo 1 vs Grupo 2, Grupo 1 vs Grupo 3, e Grupo 2 vs Grupo 3), aplicaremos a correção de Bonferroni para ajustar o nível de significância e controlar o risco de erro tipo I.
+
+```{r, message=FALSE, warning=FALSE}
+# Coreção de Bonferroni
+print(round(0.05 / 3, 3))
+print(round(0.10 / 3, 3))
+```
+
+Para um nível de significância de 5%, o valor ajustado é aproximadamente 0,017, e para 10%, é cerca de 0,033. Esses valores serão usados como novos limiares para determinar a significância estatística nas comparações par a par entre os grupos.
+
+```{r, message=FALSE, warning=FALSE}
+# Grupo 1 vs Grupo 2
+logrank(mG1, mG2)
+```
+
+Como mostrado acima, o Grupo 1 (imunizado) apresentou 10 falhas observadas, contra uma expectativa de aproximadamente 13,72 falhas sob a hipótese nula de igualdade entre os grupos. O Grupo 2 (não especificado) teve 15 falhas observadas, com uma expectativa de cerca de 11,28. Isso indica que o grupo imunizado teve menos falhas que o esperado, enquanto o grupo não especificado apresentou mais. No entanto, o p-valor foi de aproximadamente 0,112 (11,2%), superior aos limiares ajustados de 0,017 (5%) e 0,033 (10%), o que significa que não há evidência estatística suficiente para rejeitar a hipótese nula de igualdade das curvas de sobrevivência entre esses grupos.
+
+```{r, message=FALSE, warning=FALSE}
+# Grupo 1 vs Grupo 3
+logrank(mG1, mG3)
+```
+
+Na tabela acima, o teste comparou os Grupos 1 e 3, com expectativas médias de falhas de aproximadamente 15,34 e 7,66, respectivamente. O Grupo 1 apresentou menos falhas que o esperado, enquanto o Grupo 3 teve mais. O p-valor de 0,005 (0,5%) está abaixo do limiar ajustado de 0,017 (5%), indicando evidência estatística suficiente para rejeitar a hipótese nula. Isso demonstra uma diferença significativa nas curvas de sobrevivência entre o grupo imunizado e o grupo infectado por esquistossomose sem imunização prévia.
+
+```{r, message=FALSE, warning=FALSE}
+# Grupo 2 vs Grupo 3
+logrank(mG2, mG3)
+```
+
+No teste entre os Grupos 2 e 3, o Grupo 2 apresentou 15 falhas observadas, com uma expectativa de aproximadamente 19,52 falhas sob a hipótese nula. Já o Grupo 3 teve 13 falhas observadas, contra uma expectativa de cerca de 7. Isso indica que o Grupo 2 teve mais falhas que o esperado, enquanto o Grupo 3 teve menos. O p-valor foi de aproximadamente 0,0047 (0,47%), bem abaixo do limiar ajustado de 0,017 (5%), evidenciando que a infecção pela esquistossomose sem imunização prévia (Grupo 3) está associada a uma sobrevivência significativamente menor.
 
 # Reincidência de tumor sólido
 
 ```{r, message=FALSE, warning=FALSE}
 ########### Reincidência de tumor sólido ###########
 tumorSolido <- data.frame(
-  tempo = c(3, 4, 5.7, 6.5, 6.5, 8.4, 10, 10, 12, 15),
+  time = c(3, 4, 5.7, 6.5, 6.5, 8.4, 10, 10, 12, 15),
   evento = c(1, 0, 0, 1, 1, 0, 1, 0, 1, 1)
 )
 ```
 
+```{r, message=FALSE, warning=FALSE}
+# Gráfico de barras
+ggplot(tumorSolido[tumorSolido$evento == 1, ], aes(x = time)) +
+  geom_histogram(
+    binwidth = 1.5, # Ajuste este valor para mudar a resolução dos intervalos
+    fill = "#1b9e77",
+    color = "black",
+    boundary = 0,
+    closed = "left"
+  ) +
+  labs(
+    title = "Histograma dos Tempos até o Evento - Tumor Sólido",
+    x = "Tempo (semanas)",
+    y = "Frequência"
+  ) +
+  scale_x_continuous(breaks = seq(0, max(tumorSolido$time), by = 1)) +
+  theme_minimal()
+```
 
 ## Estimador de Kaplan-Meier
 
