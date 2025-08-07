@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=pdflatex 2025.7.23)  6 AUG 2025 23:03
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022/Debian) (preloaded format=pdflatex 2025.7.23)  7 AUG 2025 18:59
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -848,7 +848,7 @@ File: 3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-37-1.pdf Graphic
  file (type pdf)
 <use 3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-37-1.pdf>
 Package pdftex.def Info: 3_list_gabriel_carvalho_files/figure-latex/unnamed-chu
-nk-37-1.pdf  used on input line 1619.
+nk-37-1.pdf  used on input line 1621.
 (pdftex.def)             Requested size: 459.74442pt x 315.19595pt.
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
@@ -859,6 +859,14 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-0.80502pt}.
 
 [27 <./3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-37-1.pdf>]
+<3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-40-1.pdf, id=241, 459
+.7175pt x 315.1775pt>
+File: 3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-40-1.pdf Graphic
+ file (type pdf)
+<use 3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-40-1.pdf>
+Package pdftex.def Info: 3_list_gabriel_carvalho_files/figure-latex/unnamed-chu
+nk-40-1.pdf  used on input line 1701.
+(pdftex.def)             Requested size: 459.74442pt x 315.19595pt.
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 12.80502pt, for example:
@@ -867,31 +875,84 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 
 (fancyhdr)                \addtolength{\topmargin}{-0.80502pt}.
 
-[28] (./3_list_gabriel_carvalho.aux) ) 
+[28]
+
+Package fancyhdr Warning: \headheight is too small (12.0pt): 
+(fancyhdr)                Make it at least 12.80502pt, for example:
+(fancyhdr)                \setlength{\headheight}{12.80502pt}.
+(fancyhdr)                You might also make \topmargin smaller to compensate:
+
+(fancyhdr)                \addtolength{\topmargin}{-0.80502pt}.
+
+[29 <./3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-40-1.pdf>]
+<3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-43-1.pdf, id=263, 459
+.7175pt x 315.1775pt>
+File: 3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-43-1.pdf Graphic
+ file (type pdf)
+<use 3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-43-1.pdf>
+Package pdftex.def Info: 3_list_gabriel_carvalho_files/figure-latex/unnamed-chu
+nk-43-1.pdf  used on input line 1785.
+(pdftex.def)             Requested size: 459.74442pt x 315.19595pt.
+
+Package fancyhdr Warning: \headheight is too small (12.0pt): 
+(fancyhdr)                Make it at least 12.80502pt, for example:
+(fancyhdr)                \setlength{\headheight}{12.80502pt}.
+(fancyhdr)                You might also make \topmargin smaller to compensate:
+
+(fancyhdr)                \addtolength{\topmargin}{-0.80502pt}.
+
+[30]
+
+Package fancyhdr Warning: \headheight is too small (12.0pt): 
+(fancyhdr)                Make it at least 12.80502pt, for example:
+(fancyhdr)                \setlength{\headheight}{12.80502pt}.
+(fancyhdr)                You might also make \topmargin smaller to compensate:
+
+(fancyhdr)                \addtolength{\topmargin}{-0.80502pt}.
+
+[31 <./3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-43-1.pdf>]
+<3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-46-1.pdf, id=284, 459
+.7175pt x 315.1775pt>
+File: 3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-46-1.pdf Graphic
+ file (type pdf)
+<use 3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-46-1.pdf>
+Package pdftex.def Info: 3_list_gabriel_carvalho_files/figure-latex/unnamed-chu
+nk-46-1.pdf  used on input line 1860.
+(pdftex.def)             Requested size: 459.74442pt x 315.19595pt.
+
+Package fancyhdr Warning: \headheight is too small (12.0pt): 
+(fancyhdr)                Make it at least 12.80502pt, for example:
+(fancyhdr)                \setlength{\headheight}{12.80502pt}.
+(fancyhdr)                You might also make \topmargin smaller to compensate:
+
+(fancyhdr)                \addtolength{\topmargin}{-0.80502pt}.
+
+[32 <./3_list_gabriel_carvalho_files/figure-latex/unnamed-chunk-46-1.pdf>] (./3
+_list_gabriel_carvalho.aux) ) 
 Here is how much of TeX's memory you used:
- 16447 strings out of 477975
- 264227 string characters out of 5839281
+ 16474 strings out of 477975
+ 265676 string characters out of 5839281
  1893330 words of memory out of 5000000
- 36136 multiletter control sequences out of 15000+600000
- 567990 words of font info for 141 fonts, out of 8000000 for 9000
+ 36154 multiletter control sequences out of 15000+600000
+ 568073 words of font info for 142 fonts, out of 8000000 for 9000
  59 hyphenation exceptions out of 8191
- 77i,12n,81p,1020b,516s stack positions out of 10000i,1000n,20000p,200000b,200000s
-{/usr/share/texmf/fonts/enc/dvips/lm/lm-r
-m.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/font
-s/enc/dvips/lm/lm-ec.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}</usr/
-share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/type1/publ
-ic/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share
-/texmf/fonts/type1/public/lm/lmmi7.pfb></usr/share/texmf/fonts/type1/public/lm/
-lmr10.pfb></usr/share/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share/texmf/f
-onts/type1/public/lm/lmr17.pfb></usr/share/texmf/fonts/type1/public/lm/lmr7.pfb
-></usr/share/texmf/fonts/type1/public/lm/lmro10.pfb></usr/share/texmf/fonts/typ
-e1/public/lm/lmtk10.pfb></usr/share/texmf/fonts/type1/public/lm/lmtko10.pfb></u
-sr/share/texmf/fonts/type1/public/lm/lmtt10.pfb></usr/share/texmf/fonts/type1/p
-ublic/lm/lmtti10.pfb>
-Output written on 3_list_gabriel_carvalho.pdf (28 pages, 403472 bytes).
+ 77i,12n,81p,1020b,643s stack positions out of 10000i,1000n,20000p,200000b,200000s
+{/usr/share/texmf/fonts/enc/dvips/lm/lm-rm.enc}{/u
+sr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/enc/dvi
+ps/lm/lm-ec.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}</usr/share/tex
+mf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/type1/public/lm/lmb
+x12.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share/texmf/fo
+nts/type1/public/lm/lmmi7.pfb></usr/share/texmf/fonts/type1/public/lm/lmr10.pfb
+></usr/share/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share/texmf/fonts/type
+1/public/lm/lmr17.pfb></usr/share/texmf/fonts/type1/public/lm/lmr7.pfb></usr/sh
+are/texmf/fonts/type1/public/lm/lmro10.pfb></usr/share/texmf/fonts/type1/public
+/lm/lmtk10.pfb></usr/share/texmf/fonts/type1/public/lm/lmtko10.pfb></usr/share/
+texmf/fonts/type1/public/lm/lmtt10.pfb></usr/share/texmf/fonts/type1/public/lm/
+lmtti10.pfb>
+Output written on 3_list_gabriel_carvalho.pdf (32 pages, 425291 bytes).
 PDF statistics:
- 379 PDF objects out of 1000 (max. 8388607)
- 294 compressed objects within 3 object streams
- 61 named destinations out of 1000 (max. 500000)
- 30889 words of extra memory for PDF output out of 35830 (max. 10000000)
+ 427 PDF objects out of 1000 (max. 8388607)
+ 328 compressed objects within 4 object streams
+ 65 named destinations out of 1000 (max. 500000)
+ 30904 words of extra memory for PDF output out of 35830 (max. 10000000)
 

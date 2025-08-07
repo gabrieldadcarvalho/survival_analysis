@@ -48,7 +48,7 @@ params:
 
 # Introdução
 
-Este documento apresenta uma análise exploratória de sobrevivência com dados sobre hepatite, reincidência de tumor sólido e malária. A análise utilizará os estimadores de Kaplan-Meier, Nelson-Aalen e Atuarial para comparar as curvas de sobrevivência entre os grupos de cada conjunto de dados.
+Este documento apresenta uma análise exploratória de sobrevivência com dados sobre hepatite, reincidência de tumor sólido e malária. A análise utilizará os estimadores de Kaplan-Meier, Nelson-Aalen e Atuarial e o teste de log-rank para comparar as curvas de sobrevivência entre os grupos de cada conjunto de dados.
 
 # Bibliotecas
 ```{r, message=FALSE, warning=FALSE}
@@ -69,7 +69,7 @@ library(dplyr)
 
 # Funções de análise de sobrevivência
 
-A seguir vamos estruturar as funções de sobrevida não paramétricas, onde vai ser utilizado o estimador Atuarial, Kaplan-Meier e Nelson-Aalen. Essas funções serão utilizadas para calcular as curvas de sobrevivência e os intervalos de confiança.
+A seguir vamos estruturar as funções de sobrevida não paramétricas, onde vão ser utilizados os estimadores Atuarial, Kaplan-Meier e Nelson-Aalen, além da função do teste log-rank. Essas funções serão utilizadas para calcular as curvas de sobrevivência e os intervalos de confiança.
 
 
 ```{r, message=FALSE, warning=FALSE}
@@ -969,6 +969,8 @@ No teste entre os Grupos 2 e 3, o Grupo 2 apresentou 15 falhas observadas, com u
 
 # Reincidência de tumor sólido
 
+O presente estudo visa informar a respeito do tempo de reincidência de 10 pacientes com tumor sólido, tendo uma censura aleatória no paciente que foi acompanhado durante 8.4 meses e três pacientes que sofreram censura a direita com 4, 5.7 e 10 meses de acompanhamento. A baixo podemos ver o gráfico de barras para observar a distribuição da reincidência de tumor sólido ao longo dos meses.
+
 ```{r, message=FALSE, warning=FALSE}
 ########### Reincidência de tumor sólido ###########
 tumorSolido <- data.frame(
@@ -978,29 +980,156 @@ tumorSolido <- data.frame(
 ```
 
 ```{r, message=FALSE, warning=FALSE}
-# Gráfico de barras
-ggplot(tumorSolido[tumorSolido$evento == 1, ], aes(x = time)) +
-  geom_histogram(
-    binwidth = 1.5, # Ajuste este valor para mudar a resolução dos intervalos
-    fill = "#1b9e77",
-    color = "black",
-    boundary = 0,
-    closed = "left"
-  ) +
+# Gráfico com facetas e cores diferentes
+tumorSolido %>%
+  filter(evento == 1) %>%
+  ggplot(aes(x = factor(time))) +
+  geom_bar(fill = "#d95f02", color = "black", width = 0.3) +
   labs(
-    title = "Histograma dos Tempos até o Evento - Tumor Sólido",
-    x = "Tempo (semanas)",
-    y = "Frequência"
+    title = "Frequência de Eventos Observados - Tumor Sólido",
+    x = "Tempo até o Evento (meses)",
+    y = "Número de Eventos"
   ) +
-  scale_x_continuous(breaks = seq(0, max(tumorSolido$time), by = 1)) +
   theme_minimal()
 ```
 
+O gráfico de barras ilustra a distribuição temporal das reincidências, com eventos únicos ocorrendo nos meses 3, 10, 12 e 15, e um pico de duas reincidências no mês 6.5. Para analisar a dinâmica da probabilidade de sobrevida livre de reincidência, a seguir serão aplicados os estimadores de Kaplan-Meier, Atuarial e Nelson-Aalen.
+
 ## Estimador de Kaplan-Meier
 
+```{r, message=FALSE, warning=FALSE}
+# Estimador de Kaplan-Meier
+ekmTumor <- ekm(
+  time = tumorSolido$time,
+  evento = tumorSolido$evento,
+  classEvento = 1,
+  alpha = 0.05,
+  conf = "log-log"
+)
+``` 
+
+```{r, message=FALSE, warning=FALSE}
+print(ekmTumor)
+```
+
+A análise da tabela de Kaplan-Meier revela que, no terceiro mês, a probabilidade de um paciente permanecer livre de reincidência é de 90%. Contudo, observa-se uma queda acentuada no mês 6.5, quando a probabilidade de sobrevivência diminui para 0,643, reflexo da ocorrência de duas reincidências. O alargamento do intervalo de confiança (0,478 a 0,767) neste ponto, e ao longo dos meses subsequentes, evidencia a crescente incerteza nas estimativas, uma consequência direta do pequeno número de pacientes que permanecem em risco.
+
+Para uma melhor visualização da evolução da probabilidade de reincidência ao longo do tempo, a curva de sobrevivência de Kaplan-Meier será plotada a seguir.
+
+```{r, message=FALSE, warning=FALSE}
+# Adiciona manualmente os pontos iniciais e finais
+ekmTumor_ext <- ekmTumor %>%
+  add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
+  add_row(
+    time = 15,
+    S_t_i = tail(ekmTumor$S_t_i, 1),
+    lower = tail(ekmTumor$lower, 1),
+    upper = tail(ekmTumor$upper, 1)
+  )
+ggplot() +
+  geom_step(data = ekmTumor_ext, aes(x = time, y = S_t_i), color = "#d95f02", size = 1.2) +
+  geom_ribbon(
+    data = ekmTumor_ext,
+    aes(x = time, ymin = lower, ymax = upper), fill = "#d95f02", alpha = 0.1
+  ) +
+  labs(
+    title = "Curva de Sobrevivência de Tumor Sólido - Estimador Kaplan-Meier",
+    x = "Tempo (meses)",
+    y = "Probabilidade de Sobrevivência"
+  ) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0, 16, 1))
+```
+
+O gráfico de Kaplan-Meier ilustra a queda progressiva na probabilidade de sobrevivência livre de reincidência ao longo do tempo. No marco de 12 meses, a probabilidade estimada de um paciente permanecer sem reincidência é de aproximadamente 24,1%. Contudo, a precisão desta estimativa é baixa, como evidenciado pelo intervalo de confiança extremamente amplo, que vai de 0,1% a 74,6%. Essa grande incerteza reflete o pequeno número de pacientes ainda em risco nos estágios mais avançados do acompanhamento.
 
 ## Estimador Atuarial
 
+```{r, message=FALSE, warning=FALSE}
+# Estimador Atuarial
+eaTumor <- eaa(
+  time = tumorSolido$time,
+  evento = tumorSolido$evento,
+  classEvento = 1,
+  alpha = 0.05,
+  conf = "log-log"
+)
+```
+
+```{r, message=FALSE, warning=FALSE}
+print(eaTumor)
+```
+
+Pelo fato de existir apenas uma censura aleatoria durante o estudo e nenhuma censura a esquerda, o estimador atuarial coincide com o Kaplan-Meier, tendo uma pequena diferença de na probabilidade de sobrevivencia no decimo e decimo segundo mês, sendo de 0,459 contra 0,482 no decimo mês e 0,230 e 0,241 no decimo segudno mês respectivamente.
+
+Abaixo podemos ver a curva de sobrevivência Atuarial
+```{r, message=FALSE, warning=FALSE}
+# Adiciona manualmente os pontos iniciais e finais
+eaTumor_ext <- eaTumor %>%
+  add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
+  add_row(
+    time = 15,
+    S_t_i = tail(eaTumor$S_t_i, 1),
+    lower = tail(eaTumor$lower, 1),
+    upper = tail(eaTumor$upper, 1)
+  )
+ggplot() +
+  geom_line(data = eaTumor_ext, aes(x = time, y = S_t_i), color = "#d95f02", size = 1.2) +
+  geom_ribbon(
+    data = eaTumor_ext,
+    aes(x = time, ymin = lower, ymax = upper), fill = "#d95f02", alpha = 0.1
+  ) +
+  labs(
+    title = "Curva de Sobrevivência de Tumor Sólido - Estimador Atuarial",
+    x = "Tempo (meses)",
+    y = "Probabilidade de Sobrevivência"
+  ) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0, 16, 1))
+```
+
+Podemos verificar que o gráfico do estimador atuarial é praticamente identico ao de Kaplan-Meier, sendo estimado que um quarto da população de pacientes estará livre de reincidência após 12 meses, com um intervalo de confiança bastante amplo (0,1% a 74,7%), refletindo a incerteza associada ao pequeno número de pacientes em risco.
 
 ## Estimador de Nelson-Aalen
+```{r, message=FALSE, warning=FALSE}
+# Estimador de Nelson-Aalen
+enaTumor <- ena(
+  time = tumorSolido$time,
+  evento = tumorSolido$evento,
+  classEvento = 1,
+  alpha = 0.05,
+  conf = "log-log"
+)
+```
 
+```{r, message=FALSE, warning=FALSE}
+print(enaTumor)
+```
+
+O estimador de Nelson-Aalen, caracterizado por sua abordagem baseada na função de risco acumulado, tende a produzir estimativas de sobrevivência ligeiramente mais otimistas. Essa característica é evidente na probabilidade de sobrevivência no décimo segundo mês, que é de 0,321, um valor superior ao obtido com os métodos de Kaplan-Meier (0,241) e Atuarial (0,230). A seguir, a curva de Nelson-Aalen é plotada para visualizar essa trajetória de declínio mais suave.
+
+
+```{r, message=FALSE, warning=FALSE}
+# Adiciona manualmente os pontos iniciais e finais
+enaTumor_ext <- enaTumor %>%
+  add_row(time = 0, S_t_i = 1, lower = NA, upper = NA, .before = 1) %>%
+  add_row(
+    time = 15,
+    S_t_i = tail(enaTumor$S_t_i, 1),
+    lower = tail(enaTumor$lower, 1),
+    upper = tail(enaTumor$upper, 1)
+  )
+ggplot() +
+  geom_step(data = enaTumor_ext, aes(x = time, y = S_t_i), color = "#d95f02", size = 1.2) +
+  geom_ribbon(
+    data = enaTumor_ext,
+    aes(x = time, ymin = lower, ymax = upper), fill = "#d95f02", alpha = 0.1
+  ) +
+  labs(
+    title = "Curva de Sobrevivência de Tumor Sólido - Estimador de Nelson-Aalen",
+    x = "Tempo (meses)",
+    y = "Probabilidade de Sobrevivência"
+  ) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0, 16, 1))
+```
