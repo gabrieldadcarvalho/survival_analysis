@@ -1,0 +1,103 @@
+---
+title: 'Quarta Lista - Analise de Sobrevivência'
+author: "Gabriel D'assumpção de Carvalho"
+date: "`r Sys.Date()`"
+output:
+  bookdown::pdf_document2:
+    number_sections: true
+    toc: true
+    toc_depth: 2
+    fig_caption: true
+    dev: png
+    keep_tex: true
+always_allow_html: true
+knitr:
+  opts_chunk:
+    dev: "png"
+    dpi: 300
+    fig.align: "center"
+    fig.width: 7
+    fig.height: 5
+    echo: true
+    warning: false
+    message: false
+    screenshot.force: true
+header-includes: |
+  \usepackage{amsmath}
+  \usepackage{fancyhdr}
+  \usepackage{listings}
+  \usepackage{xcolor}
+  \usepackage{fvextra}
+    \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+      breaksymbolleft={},
+      showspaces = false,
+      showtabs = false,
+      breaklines,
+      commandchars=\\\{\}
+    }
+  \pagestyle{fancy}
+  \fancyhead[L]{2º Prova}
+  \fancyfoot[C]{Página \thepage}
+  \fancyhead[C]{}
+params:
+  digits: 4
+---
+
+\newpage
+
+# Introdução
+
+
+Esta atividade tem como objetivo ajustar modelos de regressão para dados de sobrevivência de pacientes com leucemia no grupo controle, que não apresenta o antígeno Ag-. As variáveis explicativas do estudo são a contagem de glóbulos brancos (WBC) e o seu logaritmo na base 10.
+
+# Bibliotecas
+```{r, message=FALSE, warning=FALSE}
+# Carregamento dos pacotes necessários
+
+# Pacote para análise de sobrevivência
+# install.packages("survival")
+library(survival)
+```
+
+# Leucemia
+
+Abaixo está o dataframe dos pacientes sem leucemia, que constituem o grupo controle do estudo, com 16 observações. Observa-se que a variável explicativa WBC é contínua, assumindo valores em $\mathbb{Z}^+$.
+
+
+```{r, message=FALSE, warning=FALSE}
+agN <- data.frame(
+  time = c(56, 65, 17, 7, 16, 22, 3, 4, 2, 3, 8, 4, 3, 30, 4, 43),
+  status = rep(1, 16),
+  WBC = c(4400, 3000, 4000, 1500, 9000, 5300, 10000, 19000, 27000, 28000, 31000, 26000, 21000, 79000, 100000, 100000),
+  log_10 = c(3.64, 3.48, 3.60, 3.18, 3.95, 3.72, 4.00, 4.28, 4.43, 4.45, 4.49, 4.41, 4.32, 4.90, 5.00, 5.00)
+)
+print(agN)
+```
+
+A seguir, ajustaremos o modelo de Cox para avaliar a relação entre as variáveis WBC, log$_{10}$ e o tempo de sobrevivência, com o objetivo de analisar o impacto da contagem de glóbulos brancos sobre o tempo de sobrevivência dos pacientes.
+
+## Modelo de Cox
+
+```{r, message=FALSE, warning=FALSE}
+# Ajuste do modelo de Cox
+modelo_cox <- coxph(Surv(time, status) ~ WBC + log_10, data = agN)
+print(summary(modelo_cox))
+```
+
+O modelo de Cox foi ajustado considerando as variáveis WBC e log(WBC). Os coeficientes estimados foram aproximadamente $-6 \times 10^{-5}$ para WBC e $4.07$ para log(WBC).
+
+Para interpretar o efeito das variáveis sobre o risco, utiliza-se a exponencial dos coeficientes, que resultam em aproximadamente $1$ para WBC e $58.66$ para log(WBC). Isso significa que, para cada aumento unitário em WBC, o risco praticamente não se altera (razão de risco próxima de 1). Por outro lado, para cada aumento unitário no log(WBC), o risco aumenta em cerca de 58.66 vezes, reduzindo o tempo de sobrevivência.
+
+Ambos os coeficientes apresentaram significância estatística, com valores-p abaixo de 2%, permitindo rejeitar a hipótese nula com 95% de confiança.  
+O intervalo de confiança para a razão de risco para WBC e log(WBC) é aproximadamente $[0.9999, 1]$ e $[2.47, 1399]$, respectivamente.  
+Portanto, apesar do WBC ter tido um valor-p baixo, seu intervalo de confiança inclui 1, indicando que ele não tem impacto significativo no tempo de sobrevivência. Já o log(WBC) é uma variável que tem impacto significativo no tempo de sobrevivência, considerando que ambas estão no modelo.
+
+Também é possível verificar que a estatística de concordância (`Concordance`) foi 0.75, indicando que, ao comparar aleatoriamente dois indivíduos, o modelo acertou em 75% das vezes qual deles teria maior tempo de sobrevivência.  
+
+Além disso, os testes da razão de verossimilhança (likelihood ratio) e de Wald avaliam se o modelo é significativo, isto é, se pelo menos um coeficiente é diferente de zero, apresentando p-valores de 0.02 e 0.04, respectivamente, reforçando a validade do modelo.
+
+
+
+
+
+
